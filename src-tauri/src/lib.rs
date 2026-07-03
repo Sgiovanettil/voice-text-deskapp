@@ -14,6 +14,7 @@ mod ipc;
 mod persistence;
 mod providers;
 mod speech;
+mod tray;
 
 use tauri::Manager;
 
@@ -25,6 +26,16 @@ struct LogGuard(tracing_appender::non_blocking::WorkerGuard);
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .on_window_event(|window, event| {
+            // Cerrar la ventana de configuración la oculta a la bandeja en vez
+            // de terminar la app; se sale solo desde el menú del tray.
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                if window.label() == "settings" {
+                    let _ = window.hide();
+                    api.prevent_close();
+                }
+            }
+        })
         .setup(|app| {
             // Logs a archivo (rotación diaria) en el dir de logs del SO —
             // en Windows: %LOCALAPPDATA%\dev.sgiovanettil.voicetext\logs.
@@ -48,6 +59,16 @@ pub fn run() {
             let config_dir = app.path().app_config_dir()?;
             let settings = persistence::load_settings(&config_dir);
             let hotkey = settings.general.hotkey.clone();
+            let ui_language = settings.general.ui_language.clone();
+            let start_minimized = settings.general.start_minimized;
+
+            // Bandeja del sistema: la app queda residente. La ventana de
+            // configuración arranca oculta (`visible: false` en la conf) y se
+            // muestra ahora salvo que el usuario pida arrancar minimizado.
+            tray::build(app.handle(), &ui_language)?;
+            if !start_minimized {
+                tray::show_settings(app.handle());
+            }
 
             let event_tx = core::orchestrator::spawn(app.handle().clone());
             app.manage(ipc::commands::AppState::new(
