@@ -17,11 +17,34 @@ mod speech;
 
 use tauri::Manager;
 
+/// Mantiene vivo el writer no bloqueante de tracing-appender durante toda la
+/// vida de la app (si se dropea, los logs dejan de escribirse).
+struct LogGuard(tracing_appender::non_blocking::WorkerGuard);
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
+            // Logs a archivo (rotación diaria) en el dir de logs del SO —
+            // en Windows: %LOCALAPPDATA%\dev.sgiovanettil.voicetext\logs.
+            // El guard debe vivir tanto como la app o el writer se cierra.
+            let log_dir = app.path().app_log_dir()?;
+            let (writer, guard) = tracing_appender::non_blocking(tracing_appender::rolling::daily(
+                &log_dir,
+                "voicetext.log",
+            ));
+            tracing_subscriber::fmt()
+                .with_writer(writer)
+                .with_ansi(false)
+                .with_env_filter(
+                    tracing_subscriber::EnvFilter::try_from_default_env()
+                        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
+                )
+                .init();
+            app.manage(LogGuard(guard));
+            tracing::info!(version = env!("CARGO_PKG_VERSION"), "VoiceText iniciando");
+
             let config_dir = app.path().app_config_dir()?;
             let settings = persistence::load_settings(&config_dir);
             let hotkey = settings.general.hotkey.clone();

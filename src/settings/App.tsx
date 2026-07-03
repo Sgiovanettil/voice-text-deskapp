@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 
+import type { DomainEvent } from "../shared/events";
 import type { ApiKeyStatus, IpcError, Settings } from "../shared/settings";
 import "./App.css";
 
 type Feedback = { kind: "ok" | "error"; text: string } | null;
+type CycleStatus = { kind: "idle" | "busy" | "ok" | "error"; text: string };
 
 function App() {
   const { t } = useTranslation();
@@ -15,6 +18,8 @@ function App() {
   const [hotkeyInput, setHotkeyInput] = useState("");
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [testing, setTesting] = useState(false);
+  const [cycleStatus, setCycleStatus] = useState<CycleStatus | null>(null);
+  const [lastTranscript, setLastTranscript] = useState<string | null>(null);
 
   useEffect(() => {
     invoke<Settings>("get_settings")
@@ -27,6 +32,41 @@ function App() {
       .then(setKeyStatus)
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    const unlisten = listen<DomainEvent>("domain-event", ({ payload: ev }) => {
+      switch (ev.event) {
+        case "recordingStarted":
+          setCycleStatus({ kind: "busy", text: t("status.recording") });
+          break;
+        case "recordingStopped":
+          setCycleStatus({ kind: "busy", text: t("status.processing") });
+          break;
+        case "transcriptionStarted":
+          setCycleStatus({ kind: "busy", text: t("status.transcribing") });
+          break;
+        case "transcriptionCompleted":
+          setLastTranscript(ev.payload.text);
+          break;
+        case "textDeliveryCompleted":
+          setCycleStatus({
+            kind: "ok",
+            text: t("status.delivered", { chars: ev.payload.chars }),
+          });
+          break;
+        case "recordingFailed":
+        case "transcriptionFailed":
+        case "textDeliveryFailed":
+          setCycleStatus({ kind: "error", text: t(ev.payload.errorKey) });
+          break;
+        default:
+          break;
+      }
+    });
+    return () => {
+      unlisten.then((fn) => fn()).catch(() => {});
+    };
+  }, [t]);
 
   const showError = (e: unknown) => {
     const err = e as IpcError;
@@ -72,6 +112,19 @@ function App() {
     <main className="container">
       <h1>{t("settings.title")}</h1>
       <p className="subtitle">{t("settings.subtitle")}</p>
+
+      <section>
+        <h2>{t("status.label")}</h2>
+        <p role="status" className={`status status-${cycleStatus?.kind ?? "idle"}`}>
+          {cycleStatus?.text ?? t("status.idle", { hotkey: settings?.general.hotkey ?? "…" })}
+        </p>
+        {lastTranscript !== null && (
+          <>
+            <p className="hint">{t("status.lastTranscript")}</p>
+            <p className="transcript">{lastTranscript}</p>
+          </>
+        )}
+      </section>
 
       <section>
         <h2>{t("settings.apiKey.label")}</h2>
