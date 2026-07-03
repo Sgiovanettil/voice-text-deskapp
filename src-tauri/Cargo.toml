@@ -2,7 +2,7 @@
 name = "voice-text-deskapp"
 version = "0.1.0"
 description = "VoiceText — dictado por voz residente, por capacidades"
-authors = ["Sergio Giovanetti"]
+authors = ["Sebastián Antonio Giovanetti Lehmann"]
 edition = "2021"
 rust-version = "1.85"
 
