@@ -5424,6 +5424,7 @@ dependencies = [
  "async-trait",
  "cpal",
  "enigo",
+ "futures-util",
  "hound",
  "insta",
  "keyring",

@@ -15,6 +15,18 @@ rust-version = "1.85"
 name = "voice_text_deskapp_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
+[[bin]]
+name = "spike-overlay"
+path = "src/bin/spike_overlay.rs"
+
+[[bin]]
+name = "spike-delivery"
+path = "src/bin/spike_delivery.rs"
+
+[[bin]]
+name = "spike-hotkey-portal"
+path = "src/bin/spike_hotkey_portal.rs"
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
@@ -42,7 +54,8 @@ reqwest = { version = "0.13", default-features = false, features = ["json", "mul
 # ashpd (portals XDG: GlobalShortcuts para R1, RemoteDesktop para M2) es
 # específico de Linux/D-Bus — depende de std::os::unix, no compila en Windows.
 [target.'cfg(target_os = "linux")'.dependencies]
-ashpd = { version = "0.13", features = ["tokio"] }
+ashpd = { version = "0.13", features = ["tokio", "global_shortcuts"] }
+futures-util = "0.3"
 
 [dev-dependencies]
 wiremock = "0.6"
