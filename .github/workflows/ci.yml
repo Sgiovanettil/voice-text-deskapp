@@ -85,6 +85,11 @@ jobs:
       - run: cargo test --manifest-path src-tauri/Cargo.toml --workspace
 
   build:
+    # Solo bajo demanda (workflow_dispatch): es el job caro (runner Windows
+    # factura al doble) y sus artifacts solo se necesitan cuando hay algo que
+    # probar a mano. Los PRs quedan protegidos por lint/test, que corren
+    # siempre y compilan el workspace completo vía clippy --all-targets.
+    if: github.event_name == 'workflow_dispatch'
     needs: [lint-frontend, lint-rust, test-frontend, test-rust]
     strategy:
       fail-fast: false

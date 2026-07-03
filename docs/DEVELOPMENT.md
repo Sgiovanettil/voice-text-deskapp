@@ -57,15 +57,11 @@ Los 3 binarios compilan en CI pero **no se ejecutan ahí** (no hay GUI/D-Bus en 
 
 ### Opción A — descargar el binario ya compilado (recomendado, sin instalar nada)
 
-El job `build` compila los 3 spikes y los publica como artifact descargable — no hace falta tener Rust ni Node instalados para probarlos. **Importante:** actualmente CI solo corre en dos casos, no automáticamente en cada push a `develop` (se sacó ese trigger para no duplicar minutos, ver `ci.yml`):
-
-- **Por cada PR** (evento `pull_request`) — el artifact de esa corrida ya tiene el fix/cambio de ese PR, incluso antes de mergear.
-- **Manualmente** (`workflow_dispatch`), para regenerar el artifact sobre el último estado de una rama (típicamente `develop`) sin necesidad de un PR nuevo.
+El job `build` compila los 3 spikes y los publica como artifact descargable — no hace falta tener Rust ni Node instalados para probarlos. **Importante:** el job `build` (el caro, runner Windows factura al doble) corre **solo bajo demanda** (`workflow_dispatch`), no en cada PR — los PRs corren únicamente los jobs livianos de lint/test. Así se puede agrupar varios PRs de trabajo y generar un solo build cuando hay algo que probar a mano.
 
 Pasos:
 
-1. Si lo que quieres es probar el resultado de un PR específico: entrar a ese PR, pestaña **Checks**, abrir la corrida de **CI**.
-   Si quieres el último estado de `develop`: ir a la pestaña [Actions → CI](https://github.com/Sgiovanettil/voice-text-deskapp/actions/workflows/ci.yml), botón **Run workflow** (arriba a la derecha), rama `develop`, y esperar a que termine.
+1. Ir a la pestaña [Actions → CI](https://github.com/Sgiovanettil/voice-text-deskapp/actions/workflows/ci.yml), botón **Run workflow** (arriba a la derecha), elegir la rama (normalmente `develop`) y esperar a que termine. Desde terminal: `gh workflow run ci.yml --ref develop`.
 2. En la sección **Artifacts** al final de la página de esa corrida, descargar `spike-binaries-windows` (Linux está pausado por ahora, ver nota abajo).
 3. Descomprimir el `.zip` en una carpeta **nueva** cada vez (no sobreescribir la anterior, para no confundir binarios viejos con nuevos) y ejecutar directamente: `spike-overlay.exe`, `spike-delivery.exe "texto de prueba"`, `spike-hotkey-portal.exe`.
 
