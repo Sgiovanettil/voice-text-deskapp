@@ -23,6 +23,15 @@
       "saved": "Shortcut saved."
     }
   },
+  "status": {
+    "label": "Status",
+    "idle": "Ready to dictate — hold {{hotkey}}, speak, then release.",
+    "recording": "Recording… (release the shortcut to transcribe)",
+    "processing": "Processing audio…",
+    "transcribing": "Transcribing…",
+    "delivered": "Text copied to the clipboard ({{chars}} characters) — paste it with Ctrl+V.",
+    "lastTranscript": "Last transcription:"
+  },
   "overlay": {
     "placeholder": "Overlay — pending implementation (M2)"
   },
