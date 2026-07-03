@@ -7,25 +7,29 @@
 //! principio 3 del PRD). Repetir en Windows, X11, Wayland GNOME y Wayland KDE.
 
 fn main() {
+    // WebView2 en Windows no renderiza navegaciones a data: URLs (ventana
+    // queda en blanco), así que el spike carga los assets embebidos de la app
+    // (frontendDist compilado dentro del binario) y reemplaza el contenido
+    // con el aviso verde vía initialization script, antes de que cargue React.
+    let overlay_script = "\
+        window.addEventListener('DOMContentLoaded', () => {\
+            document.documentElement.innerHTML =\
+                \"<body style='margin:0;background:#222;color:#0f0;\
+                font-family:sans-serif;display:flex;align-items:center;\
+                justify-content:center;height:100vh'>\
+                ESCUCHANDO (spike-overlay)</body>\";\
+        });";
     tauri::Builder::default()
-        .setup(|app| {
-            // Un '#' o espacio sin escapar en un data: URL se interpreta como
-            // inicio del fragment (#...) y trunca todo lo que sigue — por
-            // eso los colores hex y el texto se codifican antes de armar la URL.
-            let html_body = "<body style='margin:0;background:#222;color:#0f0;\
-                font-family:sans-serif;display:flex;align-items:center;justify-content:center;\
-                height:100vh'>ESCUCHANDO (spike-overlay)</body>";
-            let encoded = html_body.replace('#', "%23").replace(' ', "%20");
-            let url = format!("data:text/html,{encoded}");
+        .setup(move |app| {
             tauri::WebviewWindowBuilder::new(
                 app,
                 "spike-overlay",
-                tauri::WebviewUrl::External(url.parse().unwrap()),
+                tauri::WebviewUrl::App("index.html".into()),
             )
+            .initialization_script(overlay_script)
             .always_on_top(true)
             .focusable(false)
             .decorations(false)
-            .transparent(true)
             .skip_taskbar(true)
             .resizable(false)
             .inner_size(320.0, 90.0)
