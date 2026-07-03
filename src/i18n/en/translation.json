@@ -21,6 +21,12 @@
       "help": "Hold the shortcut to dictate; release it to transcribe.",
       "save": "Save shortcut",
       "saved": "Shortcut saved."
+    },
+    "outputMode": {
+      "label": "What to do with the text",
+      "insert": "Insert it where the cursor is",
+      "clipboard": "Just copy it to the clipboard",
+      "saved": "Preference saved."
     }
   },
   "status": {
@@ -58,7 +64,8 @@
     },
     "delivery": {
       "blocked": "Could not insert the text into the active application.",
-      "clipboard": "Could not copy the text to the clipboard."
+      "clipboard": "Could not copy the text to the clipboard.",
+      "insert": "Could not insert the text; it was copied to the clipboard so you can paste it with Ctrl+V."
     },
     "keyring": {
       "unavailable": "Could not access the system credential store."

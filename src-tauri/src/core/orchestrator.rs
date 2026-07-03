@@ -148,30 +148,57 @@ pub fn spawn(app: AppHandle) -> Sender<DomainEvent> {
                     }
                 }
                 Command::DeliverText { text } => {
-                    let _ = self_tx.send(DomainEvent::TextDeliveryStarted {
-                        mode: DeliveryMode::Clipboard,
-                    });
-                    let chars = text.chars().count() as u32;
-                    match crate::delivery::copy_to_clipboard(&text) {
-                        Ok(()) => {
-                            let _ = self_tx.send(DomainEvent::TextDeliveryCompleted {
-                                mode: DeliveryMode::Clipboard,
-                                chars,
-                            });
-                        }
-                        Err(e) => {
-                            let _ = self_tx.send(DomainEvent::TextDeliveryFailed {
-                                error_key: e.error_key().into(),
-                                fallback_used: false,
-                            });
-                        }
-                    }
+                    deliver_text(&app, &text, &self_tx);
                 }
                 Command::None => {}
             }
         }
     });
     tx
+}
+
+/// Entrega el texto según el `output_mode` de settings: `insert` inserta en la
+/// app activa (clipboard + pegado sintético); cualquier otro valor cae al modo
+/// `clipboard`. Emite Started/Completed/Failed con el modo efectivo.
+fn deliver_text(app: &AppHandle, text: &str, result_tx: &Sender<DomainEvent>) {
+    let mode = app
+        .try_state::<AppState>()
+        .map(|s| {
+            s.settings
+                .lock()
+                .expect("settings lock")
+                .general
+                .output_mode
+                .clone()
+        })
+        .unwrap_or_else(|| "clipboard".into());
+    let mode = if mode == "insert" {
+        DeliveryMode::Insert
+    } else {
+        DeliveryMode::Clipboard
+    };
+
+    let _ = result_tx.send(DomainEvent::TextDeliveryStarted { mode });
+    let chars = text.chars().count() as u32;
+
+    let result = match mode {
+        DeliveryMode::Insert => {
+            crate::delivery::insert_text(text, crate::delivery::PasteCombo::CtrlV)
+        }
+        DeliveryMode::Clipboard => crate::delivery::copy_to_clipboard(text),
+    };
+
+    match result {
+        Ok(()) => {
+            let _ = result_tx.send(DomainEvent::TextDeliveryCompleted { mode, chars });
+        }
+        Err(e) => {
+            let _ = result_tx.send(DomainEvent::TextDeliveryFailed {
+                error_key: e.error_key().into(),
+                fallback_used: false,
+            });
+        }
+    }
 }
 
 /// Efecto asíncrono: transcripción vía provider. El resultado vuelve al

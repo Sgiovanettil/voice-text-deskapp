@@ -1,12 +1,24 @@
 //! Inserción de texto en la app activa y modo clipboard. Mecanismo según
 //! ADR-0005. Ver docs/ARCHITECTURE.md §4.6.
 //!
-//! M1 implementa el modo clipboard (el texto queda listo para pegar). La
-//! inserción con pegado sintético y restauración de clipboard llega en M2
-//! (mecanismo ya validado por el spike R3 en Windows). Ningún
-//! `#[cfg(target_os)]` fuera de este módulo (ADR-002).
+//! Dos modos (RF-06): `clipboard` (solo copiar, garantizado en todas las
+//! plataformas) e `insert` (clipboard + pegado sintético con restauración del
+//! clipboard anterior — el mecanismo validado por el spike R3 en Windows).
+//! Todo el input sintético vive aquí; ningún `#[cfg(target_os)]` fuera de este
+//! módulo (ADR-002).
 
+use std::thread;
+use std::time::Duration;
+
+use enigo::{
+    Direction::{Press, Release},
+    Enigo, Key, Keyboard, Settings,
+};
 use serde::{Deserialize, Serialize};
+
+/// Espera tras el pegado antes de restaurar el clipboard anterior, para dar
+/// tiempo a que la app destino lea el contenido (ADR-0005: ~300 ms).
+const RESTORE_DELAY: Duration = Duration::from_millis(300);
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
@@ -15,10 +27,22 @@ pub enum DeliveryMode {
     Clipboard,
 }
 
+/// Combinación de pegado por clase de app (ADR-0005): la mayoría usa `Ctrl+V`;
+/// varios terminales requieren `Ctrl+Shift+V`. En Windows `Ctrl+V` cubre la
+/// matriz validada (incluido Windows Terminal); la selección por app activa
+/// se abordará junto con el soporte de perfiles.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PasteCombo {
+    CtrlV,
+    CtrlShiftV,
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum DeliveryError {
     #[error("clipboard: {0}")]
     Clipboard(String),
+    #[error("input sintético: {0}")]
+    Input(String),
 }
 
 impl DeliveryError {
@@ -26,18 +50,62 @@ impl DeliveryError {
     pub fn error_key(&self) -> &'static str {
         match self {
             DeliveryError::Clipboard(_) => "err.delivery.clipboard",
+            DeliveryError::Input(_) => "err.delivery.insert",
         }
     }
 }
 
-/// Deja el texto en el clipboard del sistema. Modo de entrega de M1; en M2
-/// pasa a ser la primera mitad del modo insert (clipboard + pegado sintético).
+/// Deja el texto en el clipboard del sistema (modo `clipboard`).
 pub fn copy_to_clipboard(text: &str) -> Result<(), DeliveryError> {
     let mut clipboard =
         arboard::Clipboard::new().map_err(|e| DeliveryError::Clipboard(e.to_string()))?;
     clipboard
         .set_text(text)
         .map_err(|e| DeliveryError::Clipboard(e.to_string()))
+}
+
+/// Inserta el texto en la app activa (modo `insert`): guarda el clipboard,
+/// escribe el texto, envía el pegado sintético y restaura el clipboard
+/// anterior. Si el pegado falla, el texto queda igualmente en el clipboard
+/// (degradación a clipboard manual) y se reporta el error.
+pub fn insert_text(text: &str, combo: PasteCombo) -> Result<(), DeliveryError> {
+    let mut clipboard =
+        arboard::Clipboard::new().map_err(|e| DeliveryError::Clipboard(e.to_string()))?;
+    let previous = clipboard.get_text().ok();
+    clipboard
+        .set_text(text)
+        .map_err(|e| DeliveryError::Clipboard(e.to_string()))?;
+
+    // Si el pegado falla, no restauramos: dejamos nuestro texto en el
+    // clipboard para que el usuario pueda pegar a mano.
+    synthetic_paste(combo)?;
+
+    if let Some(prev) = previous {
+        thread::sleep(RESTORE_DELAY);
+        let _ = clipboard.set_text(prev);
+    }
+    Ok(())
+}
+
+/// Emite la combinación de pegado con `enigo`. Patrón (Ctrl abajo → V
+/// abajo/arriba → Ctrl arriba) validado por el spike R3 en Windows.
+fn synthetic_paste(combo: PasteCombo) -> Result<(), DeliveryError> {
+    let mut enigo =
+        Enigo::new(&Settings::default()).map_err(|e| DeliveryError::Input(e.to_string()))?;
+    let map = |e: enigo::InputError| DeliveryError::Input(e.to_string());
+    let shift = matches!(combo, PasteCombo::CtrlShiftV);
+
+    enigo.key(Key::Control, Press).map_err(map)?;
+    if shift {
+        enigo.key(Key::Shift, Press).map_err(map)?;
+    }
+    enigo.key(Key::Unicode('v'), Press).map_err(map)?;
+    enigo.key(Key::Unicode('v'), Release).map_err(map)?;
+    if shift {
+        enigo.key(Key::Shift, Release).map_err(map)?;
+    }
+    enigo.key(Key::Control, Release).map_err(map)?;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -58,8 +126,14 @@ mod tests {
     }
 
     #[test]
-    fn error_key_de_clipboard() {
-        let err = DeliveryError::Clipboard("x".into());
-        assert_eq!(err.error_key(), "err.delivery.clipboard");
+    fn error_keys() {
+        assert_eq!(
+            DeliveryError::Clipboard("x".into()).error_key(),
+            "err.delivery.clipboard"
+        );
+        assert_eq!(
+            DeliveryError::Input("x".into()).error_key(),
+            "err.delivery.insert"
+        );
     }
 }

@@ -21,6 +21,12 @@
       "help": "Mantén presionado el atajo para dictar; al soltarlo se transcribe.",
       "save": "Guardar atajo",
       "saved": "Atajo guardado."
+    },
+    "outputMode": {
+      "label": "Qué hacer con el texto",
+      "insert": "Insertarlo donde está el cursor",
+      "clipboard": "Solo copiarlo al portapapeles",
+      "saved": "Preferencia guardada."
     }
   },
   "status": {
@@ -58,7 +64,8 @@
     },
     "delivery": {
       "blocked": "No se pudo insertar el texto en la aplicación activa.",
-      "clipboard": "No se pudo copiar el texto al portapapeles."
+      "clipboard": "No se pudo copiar el texto al portapapeles.",
+      "insert": "No se pudo insertar el texto; quedó copiado en el portapapeles para pegarlo con Ctrl+V."
     },
     "keyring": {
       "unavailable": "No se pudo acceder al almacén de credenciales del sistema."
