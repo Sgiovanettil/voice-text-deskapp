@@ -85,8 +85,12 @@ jobs:
     needs: [lint-frontend, lint-rust, test-frontend, test-rust]
     strategy:
       fail-fast: false
+      # ubuntu-22.04 pausado a propósito para ahorrar minutos de GitHub
+      # Actions mientras las pruebas manuales son solo en Windows. Volver a
+      # agregarlo ("os: [windows-latest, ubuntu-22.04]") cuando retomemos
+      # pruebas en Linux.
       matrix:
-        os: [windows-latest, ubuntu-22.04]
+        os: [windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
