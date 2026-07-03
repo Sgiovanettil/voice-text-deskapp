@@ -1,0 +1,12 @@
+---
+source: src/core/events.rs
+assertion_line: 124
+expression: "DomainEvent::RecordingStopped { duration_ms: 4_200, samples: 67_200, }"
+---
+{
+  "event": "recordingStopped",
+  "payload": {
+    "durationMs": 4200,
+    "samples": 67200
+  }
+}

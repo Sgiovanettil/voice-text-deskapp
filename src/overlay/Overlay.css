@@ -1,0 +1,105 @@
+/* La ventana overlay es pequeña, sin decoraciones y transparente: solo se ve
+   la tarjeta "pill" redondeada, el resto de la ventana es transparente. El
+   render en blanco del spike se debía a la data: URL (no a la transparencia);
+   aquí la página va bundleada como App URL, que sí renderiza. */
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
+  user-select: none;
+  cursor: default;
+}
+
+#overlay-root {
+  width: 100%;
+  height: 100%;
+}
+
+.overlay-card {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 18px;
+  background: #1e1e1eee;
+  color: #f2f2f2;
+  border: 1px solid #3a3a3a;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.overlay-message {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.overlay-indicator {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #888;
+}
+
+/* Escuchando: punto rojo que late. */
+.overlay-listening .overlay-indicator {
+  background: #e5484d;
+  animation: overlay-pulse 1.1s ease-in-out infinite;
+}
+
+/* Transcribiendo/insertando: anillo girando. */
+.overlay-transcribing .overlay-indicator,
+.overlay-delivering .overlay-indicator {
+  background: transparent;
+  border: 2px solid #8ab4f8;
+  border-top-color: transparent;
+  animation: overlay-spin 0.7s linear infinite;
+}
+
+/* Listo: verde. */
+.overlay-done .overlay-card,
+.overlay-done .overlay-indicator {
+  background: #2f9e44;
+}
+.overlay-done .overlay-indicator {
+  background: #6fd18a;
+}
+
+/* Error: rojo. */
+.overlay-error .overlay-indicator {
+  background: #e5484d;
+}
+.overlay-error {
+  border-color: #7a2a2c;
+}
+
+@keyframes overlay-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.7);
+  }
+}
+
+@keyframes overlay-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

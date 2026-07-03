@@ -1,0 +1,103 @@
+{
+  "app": {
+    "name": "VoiceText"
+  },
+  "settings": {
+    "title": "VoiceText",
+    "subtitle": "Configuración",
+    "apiKey": {
+      "label": "Clave de API de OpenAI",
+      "placeholder": "sk-…",
+      "save": "Guardar",
+      "test": "Probar conexión",
+      "testing": "Probando…",
+      "set": "Configurada ({{masked}})",
+      "notSet": "Aún no configurada",
+      "saved": "Clave guardada de forma segura en el sistema.",
+      "testOk": "Conexión con el proveedor verificada."
+    },
+    "hotkey": {
+      "label": "Atajo de dictado (mantener presionado)",
+      "help": "Mantén presionado el atajo para dictar; al soltarlo se transcribe.",
+      "save": "Guardar atajo",
+      "saved": "Atajo guardado."
+    },
+    "outputMode": {
+      "label": "Qué hacer con el texto",
+      "insert": "Insertarlo donde está el cursor",
+      "clipboard": "Solo copiarlo al portapapeles",
+      "saved": "Preferencia guardada."
+    },
+    "stt": {
+      "label": "Transcripción",
+      "model": "Modelo",
+      "language": "Idioma del dictado",
+      "saved": "Preferencia de transcripción guardada.",
+      "languages": {
+        "auto": "Detección automática",
+        "es": "Español",
+        "en": "Inglés"
+      }
+    },
+    "language": {
+      "label": "Idioma de la aplicación",
+      "saved": "Idioma de la aplicación cambiado.",
+      "hint": "El menú de la bandeja del sistema cambia de idioma al reiniciar la app.",
+      "options": {
+        "es": "Español",
+        "en": "English"
+      }
+    },
+    "startup": {
+      "label": "Inicio y residencia",
+      "autostart": "Iniciar VoiceText al encender el equipo",
+      "startMinimized": "Iniciar minimizado en la bandeja del sistema",
+      "saved": "Preferencia de inicio guardada."
+    }
+  },
+  "status": {
+    "label": "Estado",
+    "idle": "Listo para dictar — mantén presionado {{hotkey}}, habla y suéltalo.",
+    "recording": "Grabando… (suelta el atajo para transcribir)",
+    "processing": "Procesando audio…",
+    "transcribing": "Transcribiendo…",
+    "delivered": "Texto copiado al portapapeles ({{chars}} caracteres) — pégalo con Ctrl+V.",
+    "lastTranscript": "Última transcripción:"
+  },
+  "overlay": {
+    "listening": "Escuchando…",
+    "transcribing": "Transcribiendo…",
+    "delivering": "Insertando…",
+    "done": "Listo"
+  },
+  "err": {
+    "stt": {
+      "auth": "La clave de API no es válida o no está configurada.",
+      "network": "No se pudo conectar con el proveedor de transcripción.",
+      "rate": "Se alcanzó el límite de solicitudes del proveedor.",
+      "audio": "El audio capturado no es válido.",
+      "provider": "El proveedor de transcripción devolvió un error."
+    },
+    "audio": {
+      "device": "No se encontró un dispositivo de micrófono.",
+      "config": "El micrófono tiene una configuración no soportada.",
+      "stream": "Falló la captura de audio.",
+      "resample": "Falló el procesamiento del audio."
+    },
+    "hotkey": {
+      "invalid": "El atajo ingresado no es válido.",
+      "register": "No se pudo registrar el atajo global."
+    },
+    "delivery": {
+      "blocked": "No se pudo insertar el texto en la aplicación activa.",
+      "clipboard": "No se pudo copiar el texto al portapapeles.",
+      "insert": "No se pudo insertar el texto; quedó copiado en el portapapeles para pegarlo con Ctrl+V."
+    },
+    "keyring": {
+      "unavailable": "No se pudo acceder al almacén de credenciales del sistema."
+    },
+    "config": {
+      "invalid": "La configuración guardada no es válida."
+    }
+  }
+}

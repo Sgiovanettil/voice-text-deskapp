@@ -1,0 +1,171 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  # Disparo manual para generar un build (con artifacts de spikes) sobre el
+  # último estado de una rama sin depender de un push/PR nuevo — por ejemplo
+  # para regenerar el artifact de develop después de un merge, ya que no hay
+  # trigger de push automático (se sacó para no duplicar minutos en cada PR).
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  LINUX_TAURI_DEPS: libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev build-essential curl wget file libssl-dev libgtk-3-dev patchelf libasound2-dev
+  NODE_VERSION: 22
+
+jobs:
+  pr-title:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    steps:
+      - uses: amannn/action-semantic-pull-request@e32d7e603df1aa1ba07e981f2a23455dee596825 # v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  lint-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      # Fija la misma major de npm usada en desarrollo local (11.x); el npm
+      # 10.x que trae Node 22 por defecto valida distinto las dependencias
+      # peer opcionales del lockfile y rompe `npm ci` con falsos "Missing: ...".
+      - run: npm install -g npm@11
+      - run: npm ci
+      - run: npm run format:check
+      - run: npm run lint
+
+  lint-rust:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - run: sudo apt-get update && sudo apt-get install -y ${{ env.LINUX_TAURI_DEPS }}
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+        with:
+          components: rustfmt,clippy
+      - uses: Swatinem/rust-cache@42dc69e1aa15d09112580998cf2ef0119e2e91ae # v2
+        with:
+          workspaces: src-tauri
+      - run: cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
+      - run: cargo clippy --manifest-path src-tauri/Cargo.toml --workspace --all-targets -- -D warnings
+
+  test-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      # Fija la misma major de npm usada en desarrollo local (11.x); el npm
+      # 10.x que trae Node 22 por defecto valida distinto las dependencias
+      # peer opcionales del lockfile y rompe `npm ci` con falsos "Missing: ...".
+      - run: npm install -g npm@11
+      - run: npm ci
+      - run: npm test
+
+  test-rust:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - run: sudo apt-get update && sudo apt-get install -y ${{ env.LINUX_TAURI_DEPS }}
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+      - uses: Swatinem/rust-cache@42dc69e1aa15d09112580998cf2ef0119e2e91ae # v2
+        with:
+          workspaces: src-tauri
+      - run: cargo test --manifest-path src-tauri/Cargo.toml --workspace
+
+  build:
+    # Solo bajo demanda (workflow_dispatch): es el job caro (runner Windows
+    # factura al doble) y sus artifacts solo se necesitan cuando hay algo que
+    # probar a mano. Los PRs quedan protegidos por lint/test, que corren
+    # siempre y compilan el workspace completo vía clippy --all-targets.
+    if: github.event_name == 'workflow_dispatch'
+    needs: [lint-frontend, lint-rust, test-frontend, test-rust]
+    strategy:
+      fail-fast: false
+      # ubuntu-22.04 pausado a propósito para ahorrar minutos de GitHub
+      # Actions mientras las pruebas manuales son solo en Windows. Volver a
+      # agregarlo ("os: [windows-latest, ubuntu-22.04]") cuando retomemos
+      # pruebas en Linux.
+      matrix:
+        os: [windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - name: Install Linux deps
+        if: matrix.os == 'ubuntu-22.04'
+        run: sudo apt-get update && sudo apt-get install -y ${{ env.LINUX_TAURI_DEPS }}
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+      - uses: Swatinem/rust-cache@42dc69e1aa15d09112580998cf2ef0119e2e91ae # v2
+        with:
+          workspaces: src-tauri
+      - run: npm install -g npm@11
+      - run: npm ci
+      - run: npm run build
+      - run: cargo build --manifest-path src-tauri/Cargo.toml --workspace --all-targets
+      # Publica los binarios de los 3 spikes de riesgo (M0) como artefacto
+      # descargable, para probarlos en hardware real sin instalar Rust/Node.
+      - name: Publicar binarios de spikes (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: spike-binaries-windows
+          path: |
+            src-tauri/target/debug/spike-overlay.exe
+            src-tauri/target/debug/spike-delivery.exe
+            src-tauri/target/debug/spike-hotkey-portal.exe
+          if-no-files-found: error
+
+      - name: Publicar binarios de spikes (Linux)
+        if: matrix.os == 'ubuntu-22.04'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: spike-binaries-linux
+          path: |
+            src-tauri/target/debug/spike-overlay
+            src-tauri/target/debug/spike-delivery
+            src-tauri/target/debug/spike-hotkey-portal
+          if-no-files-found: error
+
+  installer:
+    # Instalador NSIS de desarrollo (sin firma), solo bajo demanda: para
+    # instalar y probar la app real en Windows sin toolchain local. El
+    # instalador firmado y con updater llega recién con release.yml (M4).
+    if: github.event_name == 'workflow_dispatch'
+    needs: [lint-frontend, lint-rust, test-frontend, test-rust]
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+      - uses: Swatinem/rust-cache@42dc69e1aa15d09112580998cf2ef0119e2e91ae # v2
+        with:
+          workspaces: src-tauri
+      - run: npm install -g npm@11
+      - run: npm ci
+      # createUpdaterArtifacts se apaga aquí: requiere la clave de firma del
+      # updater (diferida a M4) y este instalador es solo para pruebas.
+      - run: npm run tauri build -- --bundles nsis --config '{"bundle":{"createUpdaterArtifacts":false}}'
+      - name: Publicar instalador NSIS
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: voicetext-installer-windows
+          path: src-tauri/target/release/bundle/nsis/*.exe
+          if-no-files-found: error

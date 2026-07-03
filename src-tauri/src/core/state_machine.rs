@@ -1,0 +1,303 @@
+//! Máquina de estados del ciclo de dictado. Ver docs/ARCHITECTURE.md §3.
+//!
+//! Pura y sin I/O: recibe eventos de dominio (y ticks de reloj) y devuelve el
+//! comando que el orquestador debe ejecutar contra audio/speech/delivery. El
+//! tiempo entra siempre como parámetro (`now_ms`) para poder testear con
+//! reloj simulado.
+
+use crate::core::events::DomainEvent;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CoreState {
+    Idle,
+    Recording,
+    Transcribing,
+    Delivering,
+    Error,
+}
+
+/// Comando que la máquina ordena ejecutar tras procesar un evento. La máquina
+/// decide; el orquestador (core) ejecuta el I/O y realimenta con el evento
+/// resultante.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Command {
+    /// Iniciar captura de micrófono (entrando a `Recording`).
+    StartRecording,
+    /// Detener la captura; el módulo de audio responderá `RecordingStopped`.
+    StopRecording,
+    /// Enviar el audio capturado al proveedor STT.
+    StartTranscription,
+    /// Entregar el texto transcrito (clipboard/inserción).
+    DeliverText { text: String },
+    /// Nada que hacer (evento ignorado o transición sin efecto).
+    None,
+}
+
+/// Grabaciones más cortas se descartan como pulsación accidental (§3).
+pub const MIN_RECORDING_MS: u64 = 300;
+/// Dictado máximo; al alcanzarlo se corta y se transcribe lo grabado (§3).
+pub const MAX_RECORDING_MS: u64 = 120_000;
+/// Permanencia en `Error` antes de volver a `Idle` (§3, "timeout ~3 s").
+pub const ERROR_RESET_MS: u64 = 3_000;
+
+#[derive(Debug)]
+pub struct StateMachine {
+    state: CoreState,
+    /// Instante (ms, reloj del llamador) en que se entró al estado actual.
+    entered_at_ms: u64,
+}
+
+impl StateMachine {
+    pub fn new() -> Self {
+        Self {
+            state: CoreState::Idle,
+            entered_at_ms: 0,
+        }
+    }
+
+    pub fn state(&self) -> CoreState {
+        self.state
+    }
+
+    fn transition(&mut self, next: CoreState, now_ms: u64) {
+        self.state = next;
+        self.entered_at_ms = now_ms;
+    }
+
+    /// Procesa un evento de dominio y devuelve el comando a ejecutar.
+    /// Eventos que no aplican al estado actual se ignoran (`Command::None`) —
+    /// incluye la regla de reentrada: `HotkeyPressed` durante un ciclo activo.
+    pub fn handle(&mut self, event: &DomainEvent, now_ms: u64) -> Command {
+        match (self.state, event) {
+            (CoreState::Idle, DomainEvent::HotkeyPressed { .. }) => {
+                self.transition(CoreState::Recording, now_ms);
+                Command::StartRecording
+            }
+            (CoreState::Recording, DomainEvent::HotkeyReleased { .. }) => Command::StopRecording,
+            (CoreState::Recording, DomainEvent::RecordingStopped { duration_ms, .. }) => {
+                if *duration_ms < MIN_RECORDING_MS {
+                    // Pulsación accidental: a Idle sin llamar al proveedor.
+                    self.transition(CoreState::Idle, now_ms);
+                    Command::None
+                } else {
+                    self.transition(CoreState::Transcribing, now_ms);
+                    Command::StartTranscription
+                }
+            }
+            (CoreState::Recording, DomainEvent::RecordingFailed { .. }) => {
+                self.transition(CoreState::Error, now_ms);
+                Command::None
+            }
+            (CoreState::Transcribing, DomainEvent::TranscriptionCompleted { text, .. }) => {
+                self.transition(CoreState::Delivering, now_ms);
+                Command::DeliverText { text: text.clone() }
+            }
+            (CoreState::Transcribing, DomainEvent::TranscriptionFailed { .. }) => {
+                self.transition(CoreState::Error, now_ms);
+                Command::None
+            }
+            (CoreState::Delivering, DomainEvent::TextDeliveryCompleted { .. }) => {
+                self.transition(CoreState::Idle, now_ms);
+                Command::None
+            }
+            (CoreState::Delivering, DomainEvent::TextDeliveryFailed { .. }) => {
+                self.transition(CoreState::Error, now_ms);
+                Command::None
+            }
+            // Todo lo demás (incluida la reentrada de HotkeyPressed en un
+            // ciclo activo) se ignora sin cambiar de estado.
+            _ => Command::None,
+        }
+    }
+
+    /// Tick periódico del orquestador: aplica los límites temporales de §3.
+    pub fn tick(&mut self, now_ms: u64) -> Command {
+        let elapsed = now_ms.saturating_sub(self.entered_at_ms);
+        match self.state {
+            CoreState::Recording if elapsed >= MAX_RECORDING_MS => Command::StopRecording,
+            CoreState::Error if elapsed >= ERROR_RESET_MS => {
+                self.transition(CoreState::Idle, now_ms);
+                Command::None
+            }
+            _ => Command::None,
+        }
+    }
+}
+
+impl Default for StateMachine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn hotkey_pressed() -> DomainEvent {
+        DomainEvent::HotkeyPressed { timestamp: 0 }
+    }
+
+    fn recording_stopped(duration_ms: u64) -> DomainEvent {
+        DomainEvent::RecordingStopped {
+            duration_ms,
+            samples: 1_000,
+        }
+    }
+
+    fn transcription_completed(text: &str) -> DomainEvent {
+        DomainEvent::TranscriptionCompleted {
+            text: text.into(),
+            latency_ms: 500,
+            provider_id: "openai".into(),
+        }
+    }
+
+    #[test]
+    fn ciclo_feliz_completo() {
+        let mut sm = StateMachine::new();
+        assert_eq!(sm.state(), CoreState::Idle);
+
+        assert_eq!(sm.handle(&hotkey_pressed(), 0), Command::StartRecording);
+        assert_eq!(sm.state(), CoreState::Recording);
+
+        assert_eq!(
+            sm.handle(&DomainEvent::HotkeyReleased { timestamp: 4_000 }, 4_000),
+            Command::StopRecording
+        );
+        // Sigue grabando hasta que audio confirme el corte.
+        assert_eq!(sm.state(), CoreState::Recording);
+
+        assert_eq!(
+            sm.handle(&recording_stopped(4_000), 4_050),
+            Command::StartTranscription
+        );
+        assert_eq!(sm.state(), CoreState::Transcribing);
+
+        assert_eq!(
+            sm.handle(&transcription_completed("hola mundo"), 5_000),
+            Command::DeliverText {
+                text: "hola mundo".into()
+            }
+        );
+        assert_eq!(sm.state(), CoreState::Delivering);
+
+        assert_eq!(
+            sm.handle(
+                &DomainEvent::TextDeliveryCompleted {
+                    mode: crate::delivery::DeliveryMode::Clipboard,
+                    chars: 10,
+                },
+                5_100,
+            ),
+            Command::None
+        );
+        assert_eq!(sm.state(), CoreState::Idle);
+    }
+
+    #[test]
+    fn grabacion_corta_se_descarta_sin_transcribir() {
+        let mut sm = StateMachine::new();
+        sm.handle(&hotkey_pressed(), 0);
+        assert_eq!(
+            sm.handle(&recording_stopped(MIN_RECORDING_MS - 1), 300),
+            Command::None
+        );
+        assert_eq!(sm.state(), CoreState::Idle);
+    }
+
+    #[test]
+    fn hotkey_durante_ciclo_activo_se_ignora() {
+        let mut sm = StateMachine::new();
+        sm.handle(&hotkey_pressed(), 0);
+        assert_eq!(sm.handle(&hotkey_pressed(), 100), Command::None);
+        assert_eq!(sm.state(), CoreState::Recording);
+
+        sm.handle(&recording_stopped(1_000), 1_000);
+        assert_eq!(sm.handle(&hotkey_pressed(), 1_100), Command::None);
+        assert_eq!(sm.state(), CoreState::Transcribing);
+    }
+
+    #[test]
+    fn fallo_de_grabacion_va_a_error_y_vuelve_a_idle_por_timeout() {
+        let mut sm = StateMachine::new();
+        sm.handle(&hotkey_pressed(), 0);
+        sm.handle(
+            &DomainEvent::RecordingFailed {
+                error_key: "err.audio.device".into(),
+                detail: "no device".into(),
+            },
+            1_000,
+        );
+        assert_eq!(sm.state(), CoreState::Error);
+
+        // Antes del timeout sigue en Error.
+        assert_eq!(sm.tick(1_000 + ERROR_RESET_MS - 1), Command::None);
+        assert_eq!(sm.state(), CoreState::Error);
+
+        // Cumplido el timeout vuelve a Idle y acepta un ciclo nuevo.
+        sm.tick(1_000 + ERROR_RESET_MS);
+        assert_eq!(sm.state(), CoreState::Idle);
+        assert_eq!(
+            sm.handle(&hotkey_pressed(), 10_000),
+            Command::StartRecording
+        );
+    }
+
+    #[test]
+    fn fallo_de_transcripcion_va_a_error() {
+        let mut sm = StateMachine::new();
+        sm.handle(&hotkey_pressed(), 0);
+        sm.handle(&recording_stopped(2_000), 2_000);
+        sm.handle(
+            &DomainEvent::TranscriptionFailed {
+                error_key: "err.stt.network".into(),
+                retryable: true,
+                detail: "timeout".into(),
+            },
+            3_000,
+        );
+        assert_eq!(sm.state(), CoreState::Error);
+    }
+
+    #[test]
+    fn fallo_de_entrega_va_a_error() {
+        let mut sm = StateMachine::new();
+        sm.handle(&hotkey_pressed(), 0);
+        sm.handle(&recording_stopped(2_000), 2_000);
+        sm.handle(&transcription_completed("hola"), 3_000);
+        sm.handle(
+            &DomainEvent::TextDeliveryFailed {
+                error_key: "err.delivery.blocked".into(),
+                fallback_used: false,
+            },
+            3_100,
+        );
+        assert_eq!(sm.state(), CoreState::Error);
+    }
+
+    #[test]
+    fn dictado_maximo_corta_la_grabacion() {
+        let mut sm = StateMachine::new();
+        sm.handle(&hotkey_pressed(), 0);
+
+        assert_eq!(sm.tick(MAX_RECORDING_MS - 1), Command::None);
+        assert_eq!(sm.tick(MAX_RECORDING_MS), Command::StopRecording);
+        // El estado no cambia hasta que audio confirme RecordingStopped:
+        // lo grabado hasta aquí sí se transcribe (corte, no descarte).
+        assert_eq!(sm.state(), CoreState::Recording);
+        assert_eq!(
+            sm.handle(&recording_stopped(MAX_RECORDING_MS), MAX_RECORDING_MS + 50),
+            Command::StartTranscription
+        );
+    }
+
+    #[test]
+    fn eventos_fuera_de_estado_se_ignoran() {
+        let mut sm = StateMachine::new();
+        // En Idle, nada de esto aplica.
+        assert_eq!(sm.handle(&recording_stopped(5_000), 0), Command::None);
+        assert_eq!(sm.handle(&transcription_completed("x"), 0), Command::None);
+        assert_eq!(sm.state(), CoreState::Idle);
+    }
+}

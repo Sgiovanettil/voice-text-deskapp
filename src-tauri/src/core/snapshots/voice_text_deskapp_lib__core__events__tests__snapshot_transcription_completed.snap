@@ -1,0 +1,13 @@
+---
+source: src/core/events.rs
+assertion_line: 148
+expression: "DomainEvent::TranscriptionCompleted\n{ text: \"hola mundo\".into(), latency_ms: 850, provider_id: \"openai\".into(), }"
+---
+{
+  "event": "transcriptionCompleted",
+  "payload": {
+    "text": "hola mundo",
+    "latencyMs": 850,
+    "providerId": "openai"
+  }
+}

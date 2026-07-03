@@ -1,0 +1,13 @@
+---
+source: src/core/events.rs
+assertion_line: 196
+expression: "DomainEvent::ConfigChanged { changed_keys: vec![\"general.hotkey\".into()], }"
+---
+{
+  "event": "configChanged",
+  "payload": {
+    "changedKeys": [
+      "general.hotkey"
+    ]
+  }
+}

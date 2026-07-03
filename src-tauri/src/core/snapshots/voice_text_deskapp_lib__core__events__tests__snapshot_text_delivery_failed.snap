@@ -1,0 +1,12 @@
+---
+source: src/core/events.rs
+assertion_line: 181
+expression: "DomainEvent::TextDeliveryFailed\n{ error_key: \"err.delivery.blocked\".into(), fallback_used: false, }"
+---
+{
+  "event": "textDeliveryFailed",
+  "payload": {
+    "errorKey": "err.delivery.blocked",
+    "fallbackUsed": false
+  }
+}

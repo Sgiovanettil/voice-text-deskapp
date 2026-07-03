@@ -1,0 +1,103 @@
+{
+  "app": {
+    "name": "VoiceText"
+  },
+  "settings": {
+    "title": "VoiceText",
+    "subtitle": "Settings",
+    "apiKey": {
+      "label": "OpenAI API key",
+      "placeholder": "sk-…",
+      "save": "Save",
+      "test": "Test connection",
+      "testing": "Testing…",
+      "set": "Configured ({{masked}})",
+      "notSet": "Not configured yet",
+      "saved": "Key stored securely in the system.",
+      "testOk": "Provider connection verified."
+    },
+    "hotkey": {
+      "label": "Dictation shortcut (hold to talk)",
+      "help": "Hold the shortcut to dictate; release it to transcribe.",
+      "save": "Save shortcut",
+      "saved": "Shortcut saved."
+    },
+    "outputMode": {
+      "label": "What to do with the text",
+      "insert": "Insert it where the cursor is",
+      "clipboard": "Just copy it to the clipboard",
+      "saved": "Preference saved."
+    },
+    "stt": {
+      "label": "Transcription",
+      "model": "Model",
+      "language": "Dictation language",
+      "saved": "Transcription preference saved.",
+      "languages": {
+        "auto": "Automatic detection",
+        "es": "Spanish",
+        "en": "English"
+      }
+    },
+    "language": {
+      "label": "Application language",
+      "saved": "Application language changed.",
+      "hint": "The system tray menu switches language when the app restarts.",
+      "options": {
+        "es": "Español",
+        "en": "English"
+      }
+    },
+    "startup": {
+      "label": "Startup and residency",
+      "autostart": "Start VoiceText when the computer turns on",
+      "startMinimized": "Start minimized to the system tray",
+      "saved": "Startup preference saved."
+    }
+  },
+  "status": {
+    "label": "Status",
+    "idle": "Ready to dictate — hold {{hotkey}}, speak, then release.",
+    "recording": "Recording… (release the shortcut to transcribe)",
+    "processing": "Processing audio…",
+    "transcribing": "Transcribing…",
+    "delivered": "Text copied to the clipboard ({{chars}} characters) — paste it with Ctrl+V.",
+    "lastTranscript": "Last transcription:"
+  },
+  "overlay": {
+    "listening": "Listening…",
+    "transcribing": "Transcribing…",
+    "delivering": "Inserting…",
+    "done": "Done"
+  },
+  "err": {
+    "stt": {
+      "auth": "The API key is invalid or not configured.",
+      "network": "Could not connect to the transcription provider.",
+      "rate": "The provider's rate limit was reached.",
+      "audio": "The captured audio is invalid.",
+      "provider": "The transcription provider returned an error."
+    },
+    "audio": {
+      "device": "No microphone device was found.",
+      "config": "The microphone has an unsupported configuration.",
+      "stream": "Audio capture failed.",
+      "resample": "Audio processing failed."
+    },
+    "hotkey": {
+      "invalid": "The shortcut you entered is not valid.",
+      "register": "Could not register the global shortcut."
+    },
+    "delivery": {
+      "blocked": "Could not insert the text into the active application.",
+      "clipboard": "Could not copy the text to the clipboard.",
+      "insert": "Could not insert the text; it was copied to the clipboard so you can paste it with Ctrl+V."
+    },
+    "keyring": {
+      "unavailable": "Could not access the system credential store."
+    },
+    "config": {
+      "invalid": "The saved configuration is invalid."
+    }
+  }
+}

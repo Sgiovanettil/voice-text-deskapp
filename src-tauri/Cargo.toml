@@ -1,0 +1,71 @@
+[package]
+name = "voice-text-deskapp"
+version = "1.0.0"
+# Con los [[bin]] de spikes el crate tiene varios binarios; tauri build
+# necesita saber cuál es la app (falla con "failed to find main binary").
+default-run = "voice-text-deskapp"
+description = "VoiceText — dictado por voz residente, por capacidades"
+authors = ["Sebastián Antonio Giovanetti Lehmann"]
+edition = "2021"
+rust-version = "1.85"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "voice_text_deskapp_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "spike-overlay"
+path = "src/bin/spike_overlay.rs"
+
+[[bin]]
+name = "spike-delivery"
+path = "src/bin/spike_delivery.rs"
+
+[[bin]]
+name = "spike-hotkey-portal"
+path = "src/bin/spike_hotkey_portal.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "webview-data-url"] }
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-autostart = "2"
+tauri-plugin-clipboard-manager = "2"
+async-trait = "0.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
+thiserror = "2"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-appender = "0.2"
+keyring = "4"
+cpal = "0.18"
+rubato = "3"
+hound = "3"
+enigo = "0.6"
+arboard = "3"
+reqwest = { version = "0.13", default-features = false, features = ["json", "multipart", "rustls"] }
+
+# ashpd (portals XDG: GlobalShortcuts para R1, RemoteDesktop para M2) es
+# específico de Linux/D-Bus — depende de std::os::unix, no compila en Windows.
+[target.'cfg(target_os = "linux")'.dependencies]
+ashpd = { version = "0.13", features = ["tokio", "global_shortcuts"] }
+futures-util = "0.3"
+
+[dev-dependencies]
+wiremock = "0.6"
+rstest = "0.26"
+insta = { version = "1", features = ["json"] }
+
+[profile.release]
+panic = "abort"
+strip = true
+lto = true

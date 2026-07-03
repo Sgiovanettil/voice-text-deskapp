@@ -1,0 +1,11 @@
+---
+source: src/core/events.rs
+assertion_line: 99
+expression: "DomainEvent::HotkeyPressed { timestamp: 1_700_000_000 }"
+---
+{
+  "event": "hotkeyPressed",
+  "payload": {
+    "timestamp": 1700000000
+  }
+}
