@@ -1,0 +1,12 @@
+---
+source: src/core/events.rs
+assertion_line: 173
+expression: "DomainEvent::TextDeliveryCompleted\n{ mode: DeliveryMode::Clipboard, chars: 42, }"
+---
+{
+  "event": "textDeliveryCompleted",
+  "payload": {
+    "mode": "clipboard",
+    "chars": 42
+  }
+}

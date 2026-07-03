@@ -43,7 +43,7 @@ ashpd = { version = "0.13", features = ["tokio"] }
 [dev-dependencies]
 wiremock = "0.6"
 rstest = "0.26"
-insta = "1"
+insta = { version = "1", features = ["json"] }
 
 [profile.release]
 panic = "abort"

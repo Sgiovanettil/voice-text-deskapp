@@ -1,0 +1,12 @@
+---
+source: src/core/events.rs
+assertion_line: 116
+expression: "DomainEvent::RecordingStarted\n{ device_id: \"default\".into(), sample_rate: 16_000, }"
+---
+{
+  "event": "recordingStarted",
+  "payload": {
+    "deviceId": "default",
+    "sampleRate": 16000
+  }
+}
