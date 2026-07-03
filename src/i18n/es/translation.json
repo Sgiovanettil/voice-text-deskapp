@@ -4,7 +4,24 @@
   },
   "settings": {
     "title": "VoiceText",
-    "subtitle": "Configuración — scaffold M0, sin funcionalidad todavía."
+    "subtitle": "Configuración",
+    "apiKey": {
+      "label": "Clave de API de OpenAI",
+      "placeholder": "sk-…",
+      "save": "Guardar",
+      "test": "Probar conexión",
+      "testing": "Probando…",
+      "set": "Configurada ({{masked}})",
+      "notSet": "Aún no configurada",
+      "saved": "Clave guardada de forma segura en el sistema.",
+      "testOk": "Conexión con el proveedor verificada."
+    },
+    "hotkey": {
+      "label": "Atajo de dictado (mantener presionado)",
+      "help": "Mantén presionado el atajo para dictar; al soltarlo se transcribe.",
+      "save": "Guardar atajo",
+      "saved": "Atajo guardado."
+    }
   },
   "overlay": {
     "placeholder": "Overlay — pendiente de implementación (M2)"
@@ -18,10 +35,21 @@
       "provider": "El proveedor de transcripción devolvió un error."
     },
     "audio": {
-      "device": "No se encontró un dispositivo de micrófono."
+      "device": "No se encontró un dispositivo de micrófono.",
+      "config": "El micrófono tiene una configuración no soportada.",
+      "stream": "Falló la captura de audio.",
+      "resample": "Falló el procesamiento del audio."
+    },
+    "hotkey": {
+      "invalid": "El atajo ingresado no es válido.",
+      "register": "No se pudo registrar el atajo global."
     },
     "delivery": {
-      "blocked": "No se pudo insertar el texto en la aplicación activa."
+      "blocked": "No se pudo insertar el texto en la aplicación activa.",
+      "clipboard": "No se pudo copiar el texto al portapapeles."
+    },
+    "keyring": {
+      "unavailable": "No se pudo acceder al almacén de credenciales del sistema."
     },
     "config": {
       "invalid": "La configuración guardada no es válida."
