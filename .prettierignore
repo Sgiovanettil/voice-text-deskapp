@@ -1,0 +1,11 @@
+dist
+src-tauri/target
+graphify-out
+node_modules
+package-lock.json
+
+# Documentación de producto: contenido editorial mantenido a mano (tablas,
+# listas numeradas de decisiones). El reflow automático de Prettier arriesga
+# alterar tablas/alineación sin aportar valor — se excluye del formateo.
+docs/
+README.md
