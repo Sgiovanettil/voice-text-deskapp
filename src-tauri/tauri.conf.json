@@ -16,7 +16,7 @@
         "title": "VoiceText — Configuración",
         "width": 480,
         "height": 640,
-        "visible": true,
+        "visible": false,
         "resizable": true
       }
     ],
