@@ -27,6 +27,32 @@
       "insert": "Insertarlo donde está el cursor",
       "clipboard": "Solo copiarlo al portapapeles",
       "saved": "Preferencia guardada."
+    },
+    "stt": {
+      "label": "Transcripción",
+      "model": "Modelo",
+      "language": "Idioma del dictado",
+      "saved": "Preferencia de transcripción guardada.",
+      "languages": {
+        "auto": "Detección automática",
+        "es": "Español",
+        "en": "Inglés"
+      }
+    },
+    "language": {
+      "label": "Idioma de la aplicación",
+      "saved": "Idioma de la aplicación cambiado.",
+      "hint": "El menú de la bandeja del sistema cambia de idioma al reiniciar la app.",
+      "options": {
+        "es": "Español",
+        "en": "English"
+      }
+    },
+    "startup": {
+      "label": "Inicio y residencia",
+      "autostart": "Iniciar VoiceText al encender el equipo",
+      "startMinimized": "Iniciar minimizado en la bandeja del sistema",
+      "saved": "Preferencia de inicio guardada."
     }
   },
   "status": {
