@@ -1,0 +1,30 @@
+{
+  "app": {
+    "name": "VoiceText"
+  },
+  "settings": {
+    "title": "VoiceText",
+    "subtitle": "Settings — M0 scaffold, no functionality yet."
+  },
+  "overlay": {
+    "placeholder": "Overlay — pending implementation (M2)"
+  },
+  "err": {
+    "stt": {
+      "auth": "The API key is invalid or not configured.",
+      "network": "Could not connect to the transcription provider.",
+      "rate": "The provider's rate limit was reached.",
+      "audio": "The captured audio is invalid.",
+      "provider": "The transcription provider returned an error."
+    },
+    "audio": {
+      "device": "No microphone device was found."
+    },
+    "delivery": {
+      "blocked": "Could not insert the text into the active application."
+    },
+    "config": {
+      "invalid": "The saved configuration is invalid."
+    }
+  }
+}
