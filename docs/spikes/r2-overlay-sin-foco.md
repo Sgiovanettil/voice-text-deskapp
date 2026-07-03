@@ -2,8 +2,8 @@
 
 - **Binario:** `cargo run --bin spike-overlay`
 - **ADR que alimenta:** ADR-0004 (Linux X11/Wayland), diseño del overlay (ARCHITECTURE §4.9)
-- **Fecha de ejecución:** <completar>
-- **Ejecutado por:** <completar>
+- **Fecha de ejecución:** 2026-07-03 (en curso)
+- **Ejecutado por:** Sebastián Antonio Giovanetti Lehmann
 
 ## Protocolo
 
@@ -16,7 +16,7 @@
 
 | Entorno              | Versión                      | ¿Robó el foco? | ¿Se ve always-on-top? | Notas |
 | --------------------- | ----------------------------- | --------------- | ----------------------- | ----- |
-| Windows 10/11          |                                |                  |                          |       |
+| Windows 10/11          | Windows 11                     | No               | Sí                       | La ventana se mantiene siempre encima independiente de dónde se escriba; el tipeo llega a la app activa. Requirió 2 fixes previos del spike: feature `webview-data-url` y luego abandonar `data:` URLs (WebView2 no las renderiza — ventana en blanco) por assets embebidos + initialization script. |
 | Linux X11               | (DE, ej. GNOME/KDE sobre X11) |                  |                          |       |
 | Linux Wayland GNOME     | (versión GNOME)               |                  |                          |       |
 | Linux Wayland KDE       | (versión Plasma)              |                  |                          |       |

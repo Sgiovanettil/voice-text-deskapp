@@ -3,7 +3,7 @@
 - **Binario:** `cargo run --bin spike-delivery -- "texto a insertar"`
 - **ADR que resuelve:** [ADR-0005](../adr/0005-mecanismo-insercion-texto.md) — pasa de "Propuesta" a "Aceptada" con esta evidencia
 - **Fecha de ejecución:** 2026-07-03 (en curso)
-- **Ejecutado por:** Sergio Giovanetti
+- **Ejecutado por:** Sebastián Antonio Giovanetti Lehmann
 
 ## Protocolo
 
