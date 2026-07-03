@@ -1,0 +1,13 @@
+---
+source: src/core/events.rs
+assertion_line: 157
+expression: "DomainEvent::TranscriptionFailed\n{\n    error_key: \"err.stt.network\".into(), retryable: true, detail:\n    \"timeout after 30s\".into(),\n}"
+---
+{
+  "event": "transcriptionFailed",
+  "payload": {
+    "errorKey": "err.stt.network",
+    "retryable": true,
+    "detail": "timeout after 30s"
+  }
+}

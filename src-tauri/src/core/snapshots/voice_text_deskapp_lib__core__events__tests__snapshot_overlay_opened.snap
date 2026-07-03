@@ -1,0 +1,11 @@
+---
+source: src/core/events.rs
+assertion_line: 109
+expression: "DomainEvent::OverlayOpened { mode: OverlayMode::Listening }"
+---
+{
+  "event": "overlayOpened",
+  "payload": {
+    "mode": "listening"
+  }
+}
