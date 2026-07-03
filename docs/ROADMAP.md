@@ -9,7 +9,7 @@ Fuente de verdad del alcance por hito: [PRD §12](PRD.md#12-roadmap). Este docum
 | **M0 — Fundaciones** | Repo Git (Git Flow), scaffold Tauri, CI, calidad, i18n base, docs, ADRs 001–010. Spikes de riesgo (R1/R2/R3) preparados como binarios ejecutables. | ✅ **Completo** (10 PRs mergeados a `develop`) |
 | **M1 — Ciclo de dictado core** | Hotkey PTT + eventos de dominio + captura de audio + provider OpenAI + texto al clipboard. Primera versión usable. | ✅ **Completo y validado** end-to-end en Windows 11 (2026-07-03, instalador de desarrollo) |
 | **M2 — Inserción y overlay** | Inserción de texto en la app activa (según ADR-005 ya decidido); overlay con estados. | ✅ **Completo y validado** end-to-end en Windows 11 (2026-07-03) — overlay flotante se muestra sin robar foco e inserción automática (modo insert) llega donde está el cursor |
-| **M3 — Settings y residencia** | Tray, settings UI completa (con i18n), keyring, autostart, persistencia. | 🔄 **Código completo** (4 PRs) — bandeja del sistema con cerrar-a-bandeja, autostart sincronizado con el setting y UI de settings completa; keyring y persistencia ya venían de M1; pendiente validación en Windows |
+| **M3 — Settings y residencia** | Tray, settings UI completa (con i18n), keyring, autostart, persistencia. | ✅ **Completo y validado** end-to-end en Windows 11 (2026-07-03) — bandeja con cerrar-a-bandeja, autostart sincronizado con el setting y UI de settings completa; keyring y persistencia venían de M1 |
 | M4 — Endurecimiento y release | Manejo de errores pulido, logging, empaquetado firmado compatible con updater y release automatizado → **v1.0**. | ⏳ Pendiente |
 
 ### M0 — detalle de lo entregado
@@ -65,10 +65,10 @@ entregaron en M1; M3 aporta la residencia y completa la configuración:
    el idioma persistido), modelo e idioma de transcripción, y toggles de arranque automático y
    de iniciar minimizado. Todo pasa por i18n (es/en).
 
-**Pendiente de M3**: validar en Windows la residencia en bandeja (cerrar-a-bandeja, click,
-menú), el arranque automático (que el registro se cree/elimine al togglear), iniciar minimizado
-y el cambio de idioma en vivo. Limitación conocida: el menú nativo del tray cambia de idioma
-recién al reiniciar la app.
+**Validación (2026-07-03)**: verificado en Windows 11 conforme a lo definido — residencia en
+bandeja (cerrar-a-bandeja, click en el icono, menú), arranque automático que se registra/elimina
+al togglear, iniciar minimizado y cambio de idioma en vivo. Limitación conocida (aceptada): el
+menú nativo del tray cambia de idioma recién al reiniciar la app.
 
 ## Post-MVP (orden tentativo)
 
