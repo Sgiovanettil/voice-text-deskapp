@@ -9,13 +9,18 @@
 fn main() {
     tauri::Builder::default()
         .setup(|app| {
-            let html = "data:text/html,<body style='margin:0;background:#222;color:#0f0;\
+            // Un '#' o espacio sin escapar en un data: URL se interpreta como
+            // inicio del fragment (#...) y trunca todo lo que sigue — por
+            // eso los colores hex y el texto se codifican antes de armar la URL.
+            let html_body = "<body style='margin:0;background:#222;color:#0f0;\
                 font-family:sans-serif;display:flex;align-items:center;justify-content:center;\
                 height:100vh'>ESCUCHANDO (spike-overlay)</body>";
+            let encoded = html_body.replace('#', "%23").replace(' ', "%20");
+            let url = format!("data:text/html,{encoded}");
             tauri::WebviewWindowBuilder::new(
                 app,
                 "spike-overlay",
-                tauri::WebviewUrl::External(html.parse().unwrap()),
+                tauri::WebviewUrl::External(url.parse().unwrap()),
             )
             .always_on_top(true)
             .focusable(false)
