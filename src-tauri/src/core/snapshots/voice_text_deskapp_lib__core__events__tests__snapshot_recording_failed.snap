@@ -1,0 +1,12 @@
+---
+source: src/core/events.rs
+assertion_line: 132
+expression: "DomainEvent::RecordingFailed\n{\n    error_key: \"err.audio.device\".into(), detail:\n    \"no default input device\".into(),\n}"
+---
+{
+  "event": "recordingFailed",
+  "payload": {
+    "errorKey": "err.audio.device",
+    "detail": "no default input device"
+  }
+}
