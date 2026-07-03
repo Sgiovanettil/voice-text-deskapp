@@ -87,6 +87,21 @@ pub enum DomainEvent {
     },
 }
 
+impl DomainEvent {
+    /// `true` si el evento reporta un fallo de una etapa del ciclo. Lo usa el
+    /// orquestador para loguear los fallos a `warn` en vez de `info`, de modo
+    /// que un ciclo fallido resalte en el archivo de log (observabilidad, M4).
+    /// No cambia el contrato IPC: los `*Failed` ya llevan `error_key`/`detail`.
+    pub fn is_failure(&self) -> bool {
+        matches!(
+            self,
+            DomainEvent::RecordingFailed { .. }
+                | DomainEvent::TranscriptionFailed { .. }
+                | DomainEvent::TextDeliveryFailed { .. }
+        )
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -200,5 +215,31 @@ mod tests {
         insta::assert_json_snapshot!(DomainEvent::ConfigChanged {
             changed_keys: vec!["general.hotkey".into()],
         });
+    }
+
+    #[test]
+    fn is_failure_solo_para_los_eventos_de_fallo() {
+        assert!(DomainEvent::RecordingFailed {
+            error_key: "err.audio.device".into(),
+            detail: "x".into(),
+        }
+        .is_failure());
+        assert!(DomainEvent::TranscriptionFailed {
+            error_key: "err.stt.network".into(),
+            retryable: true,
+            detail: "x".into(),
+        }
+        .is_failure());
+        assert!(DomainEvent::TextDeliveryFailed {
+            error_key: "err.delivery.blocked".into(),
+            fallback_used: false,
+        }
+        .is_failure());
+        // Un evento de éxito no es fallo.
+        assert!(!DomainEvent::TextDeliveryCompleted {
+            mode: DeliveryMode::Insert,
+            chars: 3,
+        }
+        .is_failure());
     }
 }

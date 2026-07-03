@@ -52,7 +52,13 @@ pub fn spawn(app: AppHandle) -> Sender<DomainEvent> {
             let now = now_ms();
 
             if let Some(ev) = &event {
-                tracing::info!(event = ?ev, state = ?sm.state(), "evento de dominio");
+                // Los fallos suben a warn para que resalten en el log; el resto
+                // queda en info (traza del ciclo).
+                if ev.is_failure() {
+                    tracing::warn!(event = ?ev, state = ?sm.state(), "evento de fallo del ciclo");
+                } else {
+                    tracing::info!(event = ?ev, state = ?sm.state(), "evento de dominio");
+                }
                 // Contrato IPC: todo evento de dominio llega al frontend 1:1.
                 let _ = app.emit("domain-event", ev);
             }
