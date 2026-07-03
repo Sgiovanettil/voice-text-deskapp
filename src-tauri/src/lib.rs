@@ -6,6 +6,7 @@
 #![allow(dead_code)]
 
 mod audio;
+mod autostart;
 mod config;
 mod core;
 mod delivery;
@@ -26,6 +27,10 @@ struct LogGuard(tracing_appender::non_blocking::WorkerGuard);
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            None,
+        ))
         .on_window_event(|window, event| {
             // Cerrar la ventana de configuración la oculta a la bandeja en vez
             // de terminar la app; se sale solo desde el menú del tray.
@@ -69,6 +74,10 @@ pub fn run() {
             if !start_minimized {
                 tray::show_settings(app.handle());
             }
+
+            // El setting es la fuente de verdad del arranque automático:
+            // reconciliamos el estado real del SO contra él en cada arranque.
+            autostart::reconcile(app.handle(), settings.general.autostart);
 
             let event_tx = core::orchestrator::spawn(app.handle().clone());
             app.manage(ipc::commands::AppState::new(

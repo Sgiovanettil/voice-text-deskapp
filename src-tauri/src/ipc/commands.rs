@@ -98,13 +98,20 @@ pub fn set_settings(
     // Validación en el borde: un hotkey imparseable no llega a disco.
     crate::hotkeys::parse_accelerator(&settings.general.hotkey)?;
 
-    let previous_hotkey = state
+    let previous = state
         .settings
         .lock()
         .expect("settings lock")
         .general
-        .hotkey
         .clone();
+    let previous_hotkey = previous.hotkey.clone();
+
+    // El arranque automático se aplica al SO cuando cambia el toggle; el
+    // setting es la fuente de verdad (mismo criterio que en el arranque).
+    if previous.autostart != settings.general.autostart {
+        crate::autostart::reconcile(&app, settings.general.autostart);
+    }
+
     if previous_hotkey != settings.general.hotkey {
         // Re-registro en caliente: primero el nuevo (si falla, se conserva el
         // anterior y el error llega a la UI), después se suelta el viejo.
