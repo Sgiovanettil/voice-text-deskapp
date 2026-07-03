@@ -53,7 +53,21 @@ npm run tauri build
 
 ## Spikes de riesgo (M0)
 
-Los 3 binarios compilan en CI pero **no se ejecutan ahí** (no hay GUI/D-Bus en los runners). Deben correrse a mano en hardware real y documentar el resultado en `docs/spikes/`:
+Los 3 binarios compilan en CI pero **no se ejecutan ahí** (no hay GUI/D-Bus en los runners). Deben correrse a mano en hardware real y documentar el resultado en `docs/spikes/`.
+
+### Opción A — descargar el binario ya compilado (recomendado, sin instalar nada)
+
+Cada corrida de CI en `develop` publica los 3 spikes como artefacto descargable, ya compilados para Windows y Linux — no hace falta tener Rust ni Node instalados para probarlos:
+
+1. Ir a la pestaña [Actions](https://github.com/Sgiovanettil/voice-text-deskapp/actions/workflows/ci.yml) del repo, abrir la corrida más reciente del workflow **CI** sobre `develop` (con ✅ verde).
+2. En la sección **Artifacts** al final de la página, descargar `spike-binaries-windows` o `spike-binaries-linux` según el equipo donde se va a probar.
+3. Descomprimir el `.zip` y ejecutar directamente:
+   - Windows: `spike-overlay.exe`, `spike-delivery.exe "texto de prueba"`, `spike-hotkey-portal.exe`.
+   - Linux: dar permiso de ejecución (`chmod +x spike-*`) y correr `./spike-overlay`, `./spike-delivery "texto de prueba"`, `./spike-hotkey-portal`.
+
+Los artefactos expiran a los 90 días (retención por defecto de GitHub Actions); si ya no están disponibles, basta con volver a correr el workflow CI (push vacío o re-run) para regenerarlos.
+
+### Opción B — compilar localmente
 
 ```bash
 cargo run --manifest-path src-tauri/Cargo.toml --bin spike-overlay
