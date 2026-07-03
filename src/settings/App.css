@@ -15,21 +15,107 @@
 }
 
 .container {
-  margin: 0;
-  padding-top: 10vh;
+  margin: 0 auto;
+  max-width: 560px;
+  padding: 2rem 1.5rem;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  text-align: center;
+  gap: 1rem;
 }
 
 h1 {
-  text-align: center;
+  margin: 0;
+}
+
+h2 {
+  font-size: 1.1rem;
+  margin: 0 0 0.25rem;
+}
+
+section {
+  padding: 1rem;
+  border-radius: 8px;
+  background-color: #ffffff;
+  border: 1px solid #e0e0e0;
+}
+
+.subtitle {
+  margin: 0;
+  opacity: 0.7;
+}
+
+.hint {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+  opacity: 0.7;
+}
+
+.row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.row input {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid #c9c9c9;
+  font-size: 0.95rem;
+  background-color: inherit;
+  color: inherit;
+}
+
+button {
+  padding: 0.5rem 0.9rem;
+  border-radius: 6px;
+  border: 1px solid #c9c9c9;
+  background-color: #ffffff;
+  color: inherit;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  border-color: #396cd8;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.feedback-ok {
+  color: #1a7f37;
+  margin: 0;
+}
+
+.feedback-error {
+  color: #c62828;
+  margin: 0;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     color: #f6f6f6;
     background-color: #2f2f2f;
+  }
+
+  section {
+    background-color: #3a3a3a;
+    border-color: #4a4a4a;
+  }
+
+  .row input,
+  button {
+    background-color: #2f2f2f;
+    border-color: #555;
+  }
+
+  .feedback-ok {
+    color: #6fd18a;
+  }
+
+  .feedback-error {
+    color: #ef9a9a;
   }
 }

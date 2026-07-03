@@ -4,7 +4,24 @@
   },
   "settings": {
     "title": "VoiceText",
-    "subtitle": "Settings — M0 scaffold, no functionality yet."
+    "subtitle": "Settings",
+    "apiKey": {
+      "label": "OpenAI API key",
+      "placeholder": "sk-…",
+      "save": "Save",
+      "test": "Test connection",
+      "testing": "Testing…",
+      "set": "Configured ({{masked}})",
+      "notSet": "Not configured yet",
+      "saved": "Key stored securely in the system.",
+      "testOk": "Provider connection verified."
+    },
+    "hotkey": {
+      "label": "Dictation shortcut (hold to talk)",
+      "help": "Hold the shortcut to dictate; release it to transcribe.",
+      "save": "Save shortcut",
+      "saved": "Shortcut saved."
+    }
   },
   "overlay": {
     "placeholder": "Overlay — pending implementation (M2)"
@@ -18,10 +35,21 @@
       "provider": "The transcription provider returned an error."
     },
     "audio": {
-      "device": "No microphone device was found."
+      "device": "No microphone device was found.",
+      "config": "The microphone has an unsupported configuration.",
+      "stream": "Audio capture failed.",
+      "resample": "Audio processing failed."
+    },
+    "hotkey": {
+      "invalid": "The shortcut you entered is not valid.",
+      "register": "Could not register the global shortcut."
     },
     "delivery": {
-      "blocked": "Could not insert the text into the active application."
+      "blocked": "Could not insert the text into the active application.",
+      "clipboard": "Could not copy the text to the clipboard."
+    },
+    "keyring": {
+      "unavailable": "Could not access the system credential store."
     },
     "config": {
       "invalid": "The saved configuration is invalid."
