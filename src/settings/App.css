@@ -55,6 +55,14 @@ section {
   gap: 0.5rem;
 }
 
+.radio-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+  cursor: pointer;
+}
+
 .row input {
   flex: 1;
   padding: 0.5rem 0.75rem;
