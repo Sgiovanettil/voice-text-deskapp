@@ -105,3 +105,26 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: cargo build --manifest-path src-tauri/Cargo.toml --workspace --all-targets
+      # Publica los binarios de los 3 spikes de riesgo (M0) como artefacto
+      # descargable, para probarlos en hardware real sin instalar Rust/Node.
+      - name: Publicar binarios de spikes (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: spike-binaries-windows
+          path: |
+            src-tauri/target/debug/spike-overlay.exe
+            src-tauri/target/debug/spike-delivery.exe
+            src-tauri/target/debug/spike-hotkey-portal.exe
+          if-no-files-found: error
+
+      - name: Publicar binarios de spikes (Linux)
+        if: matrix.os == 'ubuntu-22.04'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: spike-binaries-linux
+          path: |
+            src-tauri/target/debug/spike-overlay
+            src-tauri/target/debug/spike-delivery
+            src-tauri/target/debug/spike-hotkey-portal
+          if-no-files-found: error
