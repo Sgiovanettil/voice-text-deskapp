@@ -9,7 +9,7 @@ Fuente de verdad del alcance por hito: [PRD §12](PRD.md#12-roadmap). Este docum
 | **M0 — Fundaciones** | Repo Git (Git Flow), scaffold Tauri, CI, calidad, i18n base, docs, ADRs 001–010. Spikes de riesgo (R1/R2/R3) preparados como binarios ejecutables. | ✅ **Completo** (10 PRs mergeados a `develop`) |
 | **M1 — Ciclo de dictado core** | Hotkey PTT + eventos de dominio + captura de audio + provider OpenAI + texto al clipboard. Primera versión usable. | ✅ **Completo y validado** end-to-end en Windows 11 (2026-07-03, instalador de desarrollo) |
 | **M2 — Inserción y overlay** | Inserción de texto en la app activa (según ADR-005 ya decidido); overlay con estados. | ✅ **Completo y validado** end-to-end en Windows 11 (2026-07-03) — overlay flotante se muestra sin robar foco e inserción automática (modo insert) llega donde está el cursor |
-| M3 — Settings y residencia | Tray, settings UI completa (con i18n), keyring, autostart, persistencia. | ⏳ Pendiente |
+| **M3 — Settings y residencia** | Tray, settings UI completa (con i18n), keyring, autostart, persistencia. | 🔄 **Código completo** (4 PRs) — bandeja del sistema con cerrar-a-bandeja, autostart sincronizado con el setting y UI de settings completa; keyring y persistencia ya venían de M1; pendiente validación en Windows |
 | M4 — Endurecimiento y release | Manejo de errores pulido, logging, empaquetado firmado compatible con updater y release automatizado → **v1.0**. | ⏳ Pendiente |
 
 ### M0 — detalle de lo entregado
@@ -47,6 +47,28 @@ Fuente de verdad del alcance por hito: [PRD §12](PRD.md#12-roadmap). Este docum
 2. **Inserción automática** (modo `insert`, ADR-0005): clipboard + pegado sintético (Ctrl+V vía `enigo`, patrón del spike R3) + restauración del clipboard anterior; degradación a pegado manual si falla. Selector "qué hacer con el texto" (insertar / solo copiar) en settings; default insert → el texto aparece solo donde está el cursor.
 
 **Validación (2026-07-03)**: verificado en Windows 11 — el overlay flotante aparece con los estados del ciclo sin robar el foco de la app activa, y la inserción automática (modo insert) hace que el texto transcrito aparezca solo donde está el cursor. La selección de combo por app activa (terminales con Ctrl+Shift+V) queda para los perfiles de pegado (post-MVP).
+
+### M3 — detalle de lo entregado (2026-07-03)
+
+Keyring (API key en el almacén del SO) y persistencia versionada de settings ya se
+entregaron en M1; M3 aporta la residencia y completa la configuración:
+
+1. **Bandeja del sistema** (`tray/`): icono con menú (Configuración / Salir) localizado
+   según `general.ui_language`, click izquierdo abre la configuración. **Cerrar-a-bandeja**:
+   cerrar la ventana de settings la oculta en vez de terminar la app (se sale solo desde el
+   menú del tray). La ventana arranca oculta (`visible: false`) y se muestra al iniciar salvo
+   `general.start_minimized`.
+2. **Autostart** (`autostart/`): registra `tauri-plugin-autostart` y reconcilia el estado real
+   del SO (registro/LaunchAgent/`.desktop`) contra `general.autostart` en cada arranque y cada
+   guardado — el setting es la fuente de verdad; best-effort, no bloquea el arranque.
+3. **UI de settings completa**: selector de idioma de la app (aplica i18n en vivo y arranca en
+   el idioma persistido), modelo e idioma de transcripción, y toggles de arranque automático y
+   de iniciar minimizado. Todo pasa por i18n (es/en).
+
+**Pendiente de M3**: validar en Windows la residencia en bandeja (cerrar-a-bandeja, click,
+menú), el arranque automático (que el registro se cree/elimine al togglear), iniciar minimizado
+y el cambio de idioma en vivo. Limitación conocida: el menú nativo del tray cambia de idioma
+recién al reiniciar la app.
 
 ## Post-MVP (orden tentativo)
 
