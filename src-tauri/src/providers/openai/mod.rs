@@ -33,6 +33,37 @@ impl OpenAiProvider {
         self
     }
 
+    /// Valida credenciales sin transcribir: `GET /models/{model}` es gratis
+    /// y responde 401 con key inválida. Lo usa el comando `test_provider`.
+    pub async fn check_auth(&self, model: &str) -> Result<(), SpeechError> {
+        let response = self
+            .client
+            .get(format!("{}/models/{model}", self.base_url))
+            .bearer_auth(&self.api_key)
+            .timeout(std::time::Duration::from_secs(10))
+            .send()
+            .await
+            .map_err(|e| {
+                if e.is_timeout() || e.is_connect() {
+                    SpeechError::Network
+                } else {
+                    SpeechError::Provider {
+                        code: e.to_string(),
+                    }
+                }
+            })?;
+        match response.status().as_u16() {
+            200 => Ok(()),
+            401 | 403 => Err(SpeechError::Auth),
+            429 => Err(SpeechError::RateLimited),
+            // 404: key válida pero el modelo no existe — lo tratamos como
+            // error de proveedor para que la UI muestre el modelo como causa.
+            status => Err(SpeechError::Provider {
+                code: status.to_string(),
+            }),
+        }
+    }
+
     async fn request_once(
         &self,
         wav: Vec<u8>,
