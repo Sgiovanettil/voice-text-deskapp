@@ -18,6 +18,7 @@ pub struct TranscribeOptions {
     pub timeout: Duration,
 }
 
+#[derive(Debug)]
 pub struct Transcript {
     pub text: String,
     pub language: Option<String>,
