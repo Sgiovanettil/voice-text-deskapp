@@ -9,23 +9,23 @@ export type DeliveryMode = "insert" | "clipboard";
 export type OverlayOutcome = "ok" | "error" | "cancelled";
 
 export type DomainEvent =
-  | { event: "HotkeyPressed"; payload: { timestamp: number } }
-  | { event: "HotkeyReleased"; payload: { timestamp: number } }
-  | { event: "OverlayOpened"; payload: { mode: OverlayMode } }
-  | { event: "RecordingStarted"; payload: { deviceId: string; sampleRate: number } }
-  | { event: "RecordingStopped"; payload: { durationMs: number; samples: number } }
-  | { event: "RecordingFailed"; payload: { errorKey: string; detail: string } }
-  | { event: "TranscriptionStarted"; payload: { providerId: string; model: string } }
+  | { event: "hotkeyPressed"; payload: { timestamp: number } }
+  | { event: "hotkeyReleased"; payload: { timestamp: number } }
+  | { event: "overlayOpened"; payload: { mode: OverlayMode } }
+  | { event: "recordingStarted"; payload: { deviceId: string; sampleRate: number } }
+  | { event: "recordingStopped"; payload: { durationMs: number; samples: number } }
+  | { event: "recordingFailed"; payload: { errorKey: string; detail: string } }
+  | { event: "transcriptionStarted"; payload: { providerId: string; model: string } }
   | {
-      event: "TranscriptionCompleted";
+      event: "transcriptionCompleted";
       payload: { text: string; latencyMs: number; providerId: string };
     }
   | {
-      event: "TranscriptionFailed";
+      event: "transcriptionFailed";
       payload: { errorKey: string; retryable: boolean; detail: string };
     }
-  | { event: "TextDeliveryStarted"; payload: { mode: DeliveryMode } }
-  | { event: "TextDeliveryCompleted"; payload: { mode: DeliveryMode; chars: number } }
-  | { event: "TextDeliveryFailed"; payload: { errorKey: string; fallbackUsed: boolean } }
-  | { event: "OverlayClosed"; payload: { outcome: OverlayOutcome } }
-  | { event: "ConfigChanged"; payload: { changedKeys: string[] } };
+  | { event: "textDeliveryStarted"; payload: { mode: DeliveryMode } }
+  | { event: "textDeliveryCompleted"; payload: { mode: DeliveryMode; chars: number } }
+  | { event: "textDeliveryFailed"; payload: { errorKey: string; fallbackUsed: boolean } }
+  | { event: "overlayClosed"; payload: { outcome: OverlayOutcome } }
+  | { event: "configChanged"; payload: { changedKeys: string[] } };

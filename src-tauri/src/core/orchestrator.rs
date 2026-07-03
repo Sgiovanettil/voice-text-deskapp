@@ -47,6 +47,7 @@ pub fn spawn(app: AppHandle) -> Sender<DomainEvent> {
             let now = now_ms();
 
             if let Some(ev) = &event {
+                tracing::info!(event = ?ev, state = ?sm.state(), "evento de dominio");
                 // Contrato IPC: todo evento de dominio llega al frontend 1:1.
                 let _ = app.emit("domain-event", ev);
             }

@@ -23,6 +23,15 @@
       "saved": "Atajo guardado."
     }
   },
+  "status": {
+    "label": "Estado",
+    "idle": "Listo para dictar — mantén presionado {{hotkey}}, habla y suéltalo.",
+    "recording": "Grabando… (suelta el atajo para transcribir)",
+    "processing": "Procesando audio…",
+    "transcribing": "Transcribiendo…",
+    "delivered": "Texto copiado al portapapeles ({{chars}} caracteres) — pégalo con Ctrl+V.",
+    "lastTranscript": "Última transcripción:"
+  },
   "overlay": {
     "placeholder": "Overlay — pendiente de implementación (M2)"
   },
