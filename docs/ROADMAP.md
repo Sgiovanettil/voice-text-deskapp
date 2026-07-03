@@ -7,7 +7,7 @@ Fuente de verdad del alcance por hito: [PRD §12](PRD.md#12-roadmap). Este docum
 | Hito | Contenido | Estado |
 | --- | --- | --- |
 | **M0 — Fundaciones** | Repo Git (Git Flow), scaffold Tauri, CI, calidad, i18n base, docs, ADRs 001–010. Spikes de riesgo (R1/R2/R3) preparados como binarios ejecutables. | ✅ **Completo** (10 PRs mergeados a `develop`) |
-| M1 — Ciclo de dictado core | Hotkey PTT + eventos de dominio + captura de audio + provider OpenAI + texto al clipboard. Primera versión usable. | 🔄 **Código completo** (8 PRs mergeados) — pendiente validación end-to-end en Windows con el instalador de desarrollo |
+| **M1 — Ciclo de dictado core** | Hotkey PTT + eventos de dominio + captura de audio + provider OpenAI + texto al clipboard. Primera versión usable. | ✅ **Completo y validado** end-to-end en Windows 11 (2026-07-03, instalador de desarrollo) |
 | M2 — Inserción y overlay | Inserción de texto en la app activa (según ADR-005 ya decidido); overlay con estados. | ⏳ Pendiente |
 | M3 — Settings y residencia | Tray, settings UI completa (con i18n), keyring, autostart, persistencia. | ⏳ Pendiente |
 | M4 — Endurecimiento y release | Manejo de errores pulido, logging, empaquetado firmado compatible con updater y release automatizado → **v1.0**. | ⏳ Pendiente |
@@ -37,8 +37,9 @@ Fuente de verdad del alcance por hito: [PRD §12](PRD.md#12-roadmap). Este docum
 6. Entrega al clipboard (arboard).
 7. Settings UI mínima (API key + test de conexión + hotkey, i18n es/en) y borde IPC completo (`{ code, errorKey }`).
 8. Orquestador: hilo dueño de máquina + recorder, efectos async como eventos, espejo de estado, eventos `domain-event` al frontend 1:1. Job CI `installer` (workflow_dispatch): instalador NSIS de desarrollo sin firma.
+9. Observabilidad (derivada de la primera prueba real): estado del ciclo en vivo y última transcripción en la ventana de settings, logs a archivo con rotación diaria (`app_log_dir`, nivel por `RUST_LOG`), y fix del espejo TS de eventos (variantes camelCase, la forma real del wire).
 
-**Validación pendiente de M1**: instalar el artifact `voicetext-installer-windows` en Windows y verificar el ciclo completo (API key → mantener hotkey → hablar → soltar → pegar).
+**Validación (2026-07-03)**: ciclo completo verificado en Windows 11 con el instalador de desarrollo — API key en keyring, test de conexión, dictado por PTT (`Ctrl+Shift+Z`) y pegado desde clipboard. Aprendizaje de UX: la primera prueba falló porque el usuario esperaba modo toggle (apretar una vez) en vez de mantener presionado — refuerza la prioridad del modo toggle+VAD ya planificado para v1.x y motivó los textos de estado explícitos ("mantén presionado… suéltalo").
 
 ## Post-MVP (orden tentativo)
 
