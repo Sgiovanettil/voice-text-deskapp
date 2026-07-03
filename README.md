@@ -5,7 +5,7 @@
 > eventos, preparada para crecer hacia una plataforma de interacción con IA desde cualquier
 > parte del sistema operativo.
 
-**Estado del proyecto:** en desarrollo (M0 — Fundaciones). El MVP todavía no es funcional.
+**Estado del proyecto:** en desarrollo (M0 — Fundaciones completo, ver [ROADMAP](docs/ROADMAP.md)). El MVP todavía no es funcional.
 
 ## Matriz de soporte
 
@@ -21,6 +21,7 @@
 - [PRD](docs/PRD.md) — visión, alcance, requisitos y roadmap.
 - [ARCHITECTURE.md](docs/ARCHITECTURE.md) — arquitectura técnica detallada.
 - [ADRs](docs/adr/) — decisiones de arquitectura.
+- [docs/ROADMAP.md](docs/ROADMAP.md) — seguimiento de avance por hito.
 - [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) — guía de desarrollo y checklist de smoke test.
 - [AGENTS.md](AGENTS.md) — comandos y convenciones operativas.
 
