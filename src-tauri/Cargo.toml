@@ -1,6 +1,9 @@
 [package]
 name = "voice-text-deskapp"
 version = "0.1.0"
+# Con los [[bin]] de spikes el crate tiene varios binarios; tauri build
+# necesita saber cuál es la app (falla con "failed to find main binary").
+default-run = "voice-text-deskapp"
 description = "VoiceText — dictado por voz residente, por capacidades"
 authors = ["Sebastián Antonio Giovanetti Lehmann"]
 edition = "2021"
