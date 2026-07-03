@@ -27,6 +27,32 @@
       "insert": "Insert it where the cursor is",
       "clipboard": "Just copy it to the clipboard",
       "saved": "Preference saved."
+    },
+    "stt": {
+      "label": "Transcription",
+      "model": "Model",
+      "language": "Dictation language",
+      "saved": "Transcription preference saved.",
+      "languages": {
+        "auto": "Automatic detection",
+        "es": "Spanish",
+        "en": "English"
+      }
+    },
+    "language": {
+      "label": "Application language",
+      "saved": "Application language changed.",
+      "hint": "The system tray menu switches language when the app restarts.",
+      "options": {
+        "es": "Español",
+        "en": "English"
+      }
+    },
+    "startup": {
+      "label": "Startup and residency",
+      "autostart": "Start VoiceText when the computer turns on",
+      "startMinimized": "Start minimized to the system tray",
+      "saved": "Startup preference saved."
     }
   },
   "status": {
