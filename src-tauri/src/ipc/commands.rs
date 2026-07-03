@@ -2,28 +2,33 @@
 //! `{ code, error_key }` (ARCHITECTURE §4.8).
 
 use std::path::PathBuf;
+use std::sync::mpsc::Sender;
 use std::sync::Mutex;
 
 use tauri::State;
 
 use crate::config::Settings;
+use crate::core::events::DomainEvent;
 use crate::core::state_machine::CoreState;
 use crate::persistence;
 
 /// Estado gestionado por Tauri. `core_state` es el espejo consultable del
-/// estado del ciclo (el orquestador de M1-PR8 lo mantiene al día).
+/// estado del ciclo (lo mantiene al día el orquestador); `event_tx` es la
+/// entrada de eventos al orquestador (la usa el re-registro de hotkey).
 pub struct AppState {
     pub config_dir: PathBuf,
     pub settings: Mutex<Settings>,
     pub core_state: Mutex<CoreState>,
+    pub event_tx: Sender<DomainEvent>,
 }
 
 impl AppState {
-    pub fn new(config_dir: PathBuf, settings: Settings) -> Self {
+    pub fn new(config_dir: PathBuf, settings: Settings, event_tx: Sender<DomainEvent>) -> Self {
         Self {
             config_dir,
             settings: Mutex::new(settings),
             core_state: Mutex::new(CoreState::Idle),
+            event_tx,
         }
     }
 }
@@ -85,9 +90,31 @@ pub fn get_settings(state: State<'_, AppState>) -> Settings {
 }
 
 #[tauri::command]
-pub fn set_settings(state: State<'_, AppState>, settings: Settings) -> Result<(), IpcError> {
+pub fn set_settings(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    settings: Settings,
+) -> Result<(), IpcError> {
     // Validación en el borde: un hotkey imparseable no llega a disco.
     crate::hotkeys::parse_accelerator(&settings.general.hotkey)?;
+
+    let previous_hotkey = state
+        .settings
+        .lock()
+        .expect("settings lock")
+        .general
+        .hotkey
+        .clone();
+    if previous_hotkey != settings.general.hotkey {
+        // Re-registro en caliente: primero el nuevo (si falla, se conserva el
+        // anterior y el error llega a la UI), después se suelta el viejo.
+        let tx = state.event_tx.clone();
+        crate::hotkeys::register_ptt(&app, &settings.general.hotkey, move |ev| {
+            let _ = tx.send(ev);
+        })?;
+        let _ = crate::hotkeys::unregister(&app, &previous_hotkey);
+    }
+
     persistence::save_settings(&state.config_dir, &settings)?;
     *state.settings.lock().expect("settings lock") = settings;
     Ok(())
