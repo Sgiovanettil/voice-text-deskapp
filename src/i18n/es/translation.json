@@ -1,0 +1,30 @@
+{
+  "app": {
+    "name": "VoiceText"
+  },
+  "settings": {
+    "title": "VoiceText",
+    "subtitle": "Configuración — scaffold M0, sin funcionalidad todavía."
+  },
+  "overlay": {
+    "placeholder": "Overlay — pendiente de implementación (M2)"
+  },
+  "err": {
+    "stt": {
+      "auth": "La clave de API no es válida o no está configurada.",
+      "network": "No se pudo conectar con el proveedor de transcripción.",
+      "rate": "Se alcanzó el límite de solicitudes del proveedor.",
+      "audio": "El audio capturado no es válido.",
+      "provider": "El proveedor de transcripción devolvió un error."
+    },
+    "audio": {
+      "device": "No se encontró un dispositivo de micrófono."
+    },
+    "delivery": {
+      "blocked": "No se pudo insertar el texto en la aplicación activa."
+    },
+    "config": {
+      "invalid": "La configuración guardada no es válida."
+    }
+  }
+}
