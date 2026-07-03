@@ -19,6 +19,7 @@ graphify-out/
 .env
 .env.local
 .claude/
+.husky/_
 
 # Editor directories and files
 .vscode/*
