@@ -2,8 +2,8 @@
 
 - **Binario:** `cargo run --bin spike-delivery -- "texto a insertar"`
 - **ADR que resuelve:** [ADR-0005](../adr/0005-mecanismo-insercion-texto.md) — pasa de "Propuesta" a "Aceptada" con esta evidencia
-- **Fecha de ejecución:** <completar>
-- **Ejecutado por:** <completar>
+- **Fecha de ejecución:** 2026-07-03 (en curso)
+- **Ejecutado por:** Sergio Giovanetti
 
 ## Protocolo
 
@@ -15,16 +15,17 @@ Campo con contraseña: verificar explícitamente que el pegado **no** exponga el
 
 | App                              | SO      | ¿Se insertó? | Combo usado | Notas |
 | --------------------------------- | ------- | ------------- | ------------ | ----- |
-| VS Code                           | Windows |               | Ctrl+V       |       |
+| VS Code                           | Windows | Sí            | Ctrl+V       |       |
 | VS Code                           | X11     |               | Ctrl+V       |       |
-| Windows Terminal                  | Windows |               |              |       |
+| Windows Terminal                  | Windows | Sí            | Ctrl+V       |       |
 | gnome-terminal / kitty            | X11     |               |              |       |
-| Navegador (campo web)             | Windows |               | Ctrl+V       |       |
+| Navegador (campo web)             | Windows | Sí            | Ctrl+V       |       |
 | Navegador (campo web)             | X11     |               | Ctrl+V       |       |
-| Notepad                           | Windows |               | Ctrl+V       |       |
+| Notepad / Notepad++               | Windows | Sí            | Ctrl+V       |       |
 | gedit                             | X11     |               | Ctrl+V       |       |
-| Campo de contraseña               | Windows |               |              |       |
+| Campo de contraseña               | Windows | Sí            | Ctrl+V       | El campo enmascara el texto pegado (muestra `*******`) — comportamiento seguro y esperado, el SO nunca lo revela en claro |
 | Campo de contraseña               | X11     |               |              |       |
+| Diálogo Ejecutar (Win+R)          | Windows | Sí            | Ctrl+V       | Extra, fuera de la matriz original — confirma que funciona hasta en campos mínimos |
 
 ## Criterio de aceptación (del ADR-0005)
 
