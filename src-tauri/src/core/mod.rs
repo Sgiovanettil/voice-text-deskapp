@@ -3,4 +3,5 @@
 
 pub mod events;
 pub mod orchestrator;
+pub mod overlay;
 pub mod state_machine;
