@@ -108,6 +108,20 @@ function App() {
       .catch(showError);
   };
 
+  const saveOutputMode = (mode: string) => {
+    if (!settings) return;
+    const updated: Settings = {
+      ...settings,
+      general: { ...settings.general, output_mode: mode },
+    };
+    invoke("set_settings", { settings: updated })
+      .then(() => {
+        setSettings(updated);
+        setFeedback({ kind: "ok", text: t("settings.outputMode.saved") });
+      })
+      .catch(showError);
+  };
+
   return (
     <main className="container">
       <h1>{t("settings.title")}</h1>
@@ -164,6 +178,30 @@ function App() {
             {t("settings.hotkey.save")}
           </button>
         </div>
+      </section>
+
+      <section>
+        <h2>{t("settings.outputMode.label")}</h2>
+        <label className="radio-row">
+          <input
+            type="radio"
+            name="output-mode"
+            checked={settings?.general.output_mode === "insert"}
+            disabled={!settings}
+            onChange={() => saveOutputMode("insert")}
+          />
+          {t("settings.outputMode.insert")}
+        </label>
+        <label className="radio-row">
+          <input
+            type="radio"
+            name="output-mode"
+            checked={settings?.general.output_mode === "clipboard"}
+            disabled={!settings}
+            onChange={() => saveOutputMode("clipboard")}
+          />
+          {t("settings.outputMode.clipboard")}
+        </label>
       </section>
 
       {feedback && (
