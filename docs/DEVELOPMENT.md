@@ -57,15 +57,21 @@ Los 3 binarios compilan en CI pero **no se ejecutan ahí** (no hay GUI/D-Bus en 
 
 ### Opción A — descargar el binario ya compilado (recomendado, sin instalar nada)
 
-Cada corrida de CI en `develop` publica los 3 spikes como artefacto descargable, ya compilados para Windows y Linux — no hace falta tener Rust ni Node instalados para probarlos:
+El job `build` compila los 3 spikes y los publica como artifact descargable — no hace falta tener Rust ni Node instalados para probarlos. **Importante:** actualmente CI solo corre en dos casos, no automáticamente en cada push a `develop` (se sacó ese trigger para no duplicar minutos, ver `ci.yml`):
 
-1. Ir a la pestaña [Actions](https://github.com/Sgiovanettil/voice-text-deskapp/actions/workflows/ci.yml) del repo, abrir la corrida más reciente del workflow **CI** sobre `develop` (con ✅ verde).
-2. En la sección **Artifacts** al final de la página, descargar `spike-binaries-windows` o `spike-binaries-linux` según el equipo donde se va a probar.
-3. Descomprimir el `.zip` y ejecutar directamente:
-   - Windows: `spike-overlay.exe`, `spike-delivery.exe "texto de prueba"`, `spike-hotkey-portal.exe`.
-   - Linux: dar permiso de ejecución (`chmod +x spike-*`) y correr `./spike-overlay`, `./spike-delivery "texto de prueba"`, `./spike-hotkey-portal`.
+- **Por cada PR** (evento `pull_request`) — el artifact de esa corrida ya tiene el fix/cambio de ese PR, incluso antes de mergear.
+- **Manualmente** (`workflow_dispatch`), para regenerar el artifact sobre el último estado de una rama (típicamente `develop`) sin necesidad de un PR nuevo.
 
-Los artefactos expiran a los 90 días (retención por defecto de GitHub Actions); si ya no están disponibles, basta con volver a correr el workflow CI (push vacío o re-run) para regenerarlos.
+Pasos:
+
+1. Si lo que quieres es probar el resultado de un PR específico: entrar a ese PR, pestaña **Checks**, abrir la corrida de **CI**.
+   Si quieres el último estado de `develop`: ir a la pestaña [Actions → CI](https://github.com/Sgiovanettil/voice-text-deskapp/actions/workflows/ci.yml), botón **Run workflow** (arriba a la derecha), rama `develop`, y esperar a que termine.
+2. En la sección **Artifacts** al final de la página de esa corrida, descargar `spike-binaries-windows` (Linux está pausado por ahora, ver nota abajo).
+3. Descomprimir el `.zip` en una carpeta **nueva** cada vez (no sobreescribir la anterior, para no confundir binarios viejos con nuevos) y ejecutar directamente: `spike-overlay.exe`, `spike-delivery.exe "texto de prueba"`, `spike-hotkey-portal.exe`.
+
+**Nota:** el build de Linux (`ubuntu-22.04`) está pausado en la matriz del job `build` para ahorrar minutos de GitHub Actions mientras las pruebas son solo en Windows — ver comentario en `ci.yml`. Reactivarlo cuando se retomen pruebas en Linux.
+
+Los artefactos expiran a los 90 días (retención por defecto de GitHub Actions); si ya no están disponibles, hay que volver a correr el workflow (PR nuevo o `workflow_dispatch`) para regenerarlos.
 
 ### Opción B — compilar localmente
 

@@ -3,6 +3,11 @@ name: CI
 on:
   pull_request:
     branches: [develop, main]
+  # Disparo manual para generar un build (con artifacts de spikes) sobre el
+  # último estado de una rama sin depender de un push/PR nuevo — por ejemplo
+  # para regenerar el artifact de develop después de un merge, ya que no hay
+  # trigger de push automático (se sacó para no duplicar minutos en cada PR).
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
