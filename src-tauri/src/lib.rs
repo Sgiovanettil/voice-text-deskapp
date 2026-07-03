@@ -24,7 +24,22 @@ pub fn run() {
         .setup(|app| {
             let config_dir = app.path().app_config_dir()?;
             let settings = persistence::load_settings(&config_dir);
-            app.manage(ipc::commands::AppState::new(config_dir, settings));
+            let hotkey = settings.general.hotkey.clone();
+
+            let event_tx = core::orchestrator::spawn(app.handle().clone());
+            app.manage(ipc::commands::AppState::new(
+                config_dir,
+                settings,
+                event_tx.clone(),
+            ));
+
+            // Si el hotkey no se puede registrar la app arranca igual: el
+            // usuario lo corrige desde settings (set_settings re-registra).
+            if let Err(e) = hotkeys::register_ptt(app.handle(), &hotkey, move |ev| {
+                let _ = event_tx.send(ev);
+            }) {
+                tracing::error!(error = %e, hotkey, "no se pudo registrar el hotkey inicial");
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
