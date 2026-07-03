@@ -1,0 +1,12 @@
+---
+source: src/core/events.rs
+assertion_line: 140
+expression: "DomainEvent::TranscriptionStarted\n{ provider_id: \"openai\".into(), model: \"gpt-4o-mini-transcribe\".into(), }"
+---
+{
+  "event": "transcriptionStarted",
+  "payload": {
+    "providerId": "openai",
+    "model": "gpt-4o-mini-transcribe"
+  }
+}

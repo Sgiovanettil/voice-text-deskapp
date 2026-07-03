@@ -1,0 +1,11 @@
+---
+source: src/core/events.rs
+assertion_line: 166
+expression: "DomainEvent::TextDeliveryStarted { mode: DeliveryMode::Insert }"
+---
+{
+  "event": "textDeliveryStarted",
+  "payload": {
+    "mode": "insert"
+  }
+}
