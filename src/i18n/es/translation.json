@@ -33,7 +33,10 @@
     "lastTranscript": "Última transcripción:"
   },
   "overlay": {
-    "placeholder": "Overlay — pendiente de implementación (M2)"
+    "listening": "Escuchando…",
+    "transcribing": "Transcribiendo…",
+    "delivering": "Insertando…",
+    "done": "Listo"
   },
   "err": {
     "stt": {

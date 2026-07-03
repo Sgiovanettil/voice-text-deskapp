@@ -9,6 +9,17 @@ const host = process.env.TAURI_DEV_HOST;
 export default defineConfig(async () => ({
   plugins: [react()],
 
+  // Dos ventanas = dos entradas HTML: la de settings (index.html) y la del
+  // overlay flotante (overlay.html). Tauri carga cada una por su label.
+  build: {
+    rollupOptions: {
+      input: {
+        main: "index.html",
+        overlay: "overlay.html",
+      },
+    },
+  },
+
   test: {
     environment: "jsdom",
     globals: true,

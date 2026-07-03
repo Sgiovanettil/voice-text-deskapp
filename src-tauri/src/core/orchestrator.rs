@@ -10,11 +10,16 @@ use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::audio::{AudioData, Recorder};
-use crate::core::events::DomainEvent;
-use crate::core::state_machine::{Command, StateMachine};
+use crate::core::events::{DomainEvent, OverlayMode, OverlayOutcome};
+use crate::core::overlay;
+use crate::core::state_machine::{Command, CoreState, StateMachine};
 use crate::delivery::DeliveryMode;
 use crate::ipc::commands::AppState;
 use crate::speech::{SpeechProvider, TranscribeOptions};
+
+/// Cuánto permanece visible el overlay tras cerrar el ciclo (mostrar "Listo"
+/// o el error) antes de ocultarse, si no arrancó un ciclo nuevo entretanto.
+const OVERLAY_DWELL: Duration = Duration::from_millis(900);
 
 /// Intervalo del tick de timeouts (§3: corte de 120 s, reset de Error ~3 s).
 const TICK: Duration = Duration::from_millis(250);
@@ -52,14 +57,52 @@ pub fn spawn(app: AppHandle) -> Sender<DomainEvent> {
                 let _ = app.emit("domain-event", ev);
             }
 
+            let prev_state = sm.state();
             let command = match &event {
                 Some(ev) => sm.handle(ev, now),
                 None => sm.tick(now),
             };
+            let new_state = sm.state();
 
             // Espejo consultable para get_app_state.
             if let Some(state) = app.try_state::<AppState>() {
                 *state.core_state.lock().expect("core state lock") = sm.state();
+            }
+
+            // Ciclo de vida del overlay ligado a las transiciones del core
+            // (ARCHITECTURE §3, invariante: RecordingStarted siempre tras
+            // OverlayOpened). El overlay React arranca en "Escuchando", así
+            // que aunque OverlayOpened llegue antes de que suscriba, no hay
+            // ventana en blanco.
+            if prev_state == CoreState::Idle && new_state == CoreState::Recording {
+                overlay::show(&app);
+                let _ = app.emit(
+                    "domain-event",
+                    &DomainEvent::OverlayOpened {
+                        mode: OverlayMode::Listening,
+                    },
+                );
+            }
+            if prev_state != CoreState::Idle && new_state == CoreState::Idle {
+                let outcome = if prev_state == CoreState::Error {
+                    OverlayOutcome::Error
+                } else {
+                    OverlayOutcome::Ok
+                };
+                let _ = app.emit("domain-event", &DomainEvent::OverlayClosed { outcome });
+                // Se oculta tras un breve dwell para que se vea "Listo"/error;
+                // si arranca un ciclo nuevo en ese lapso, no se oculta.
+                let app_hide = app.clone();
+                std::thread::spawn(move || {
+                    std::thread::sleep(OVERLAY_DWELL);
+                    let still_idle = app_hide
+                        .try_state::<AppState>()
+                        .map(|s| *s.core_state.lock().expect("core state lock") == CoreState::Idle)
+                        .unwrap_or(true);
+                    if still_idle {
+                        overlay::hide(&app_hide);
+                    }
+                });
             }
 
             match command {
