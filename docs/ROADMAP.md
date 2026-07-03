@@ -8,7 +8,7 @@ Fuente de verdad del alcance por hito: [PRD §12](PRD.md#12-roadmap). Este docum
 | --- | --- | --- |
 | **M0 — Fundaciones** | Repo Git (Git Flow), scaffold Tauri, CI, calidad, i18n base, docs, ADRs 001–010. Spikes de riesgo (R1/R2/R3) preparados como binarios ejecutables. | ✅ **Completo** (10 PRs mergeados a `develop`) |
 | **M1 — Ciclo de dictado core** | Hotkey PTT + eventos de dominio + captura de audio + provider OpenAI + texto al clipboard. Primera versión usable. | ✅ **Completo y validado** end-to-end en Windows 11 (2026-07-03, instalador de desarrollo) |
-| M2 — Inserción y overlay | Inserción de texto en la app activa (según ADR-005 ya decidido); overlay con estados. | 🔄 **Código completo** (2 PRs) — overlay flotante con estados + inserción automática (modo insert); pendiente validación en Windows |
+| **M2 — Inserción y overlay** | Inserción de texto en la app activa (según ADR-005 ya decidido); overlay con estados. | ✅ **Completo y validado** end-to-end en Windows 11 (2026-07-03) — overlay flotante se muestra sin robar foco e inserción automática (modo insert) llega donde está el cursor |
 | M3 — Settings y residencia | Tray, settings UI completa (con i18n), keyring, autostart, persistencia. | ⏳ Pendiente |
 | M4 — Endurecimiento y release | Manejo de errores pulido, logging, empaquetado firmado compatible con updater y release automatizado → **v1.0**. | ⏳ Pendiente |
 
@@ -46,7 +46,7 @@ Fuente de verdad del alcance por hito: [PRD §12](PRD.md#12-roadmap). Este docum
 1. **Overlay flotante** (spike R2 → feature): ventana Tauri aparte (`overlay.html`), siempre encima, sin foco, sin decoraciones, transparente y fuera de la barra de tareas. Muestra en vivo escuchando → transcribiendo → insertando → listo/error, ligada a las transiciones del core (`OverlayOpened`/`OverlayClosed`), posicionada abajo-centro, reutilizada entre ciclos con dwell de 900 ms.
 2. **Inserción automática** (modo `insert`, ADR-0005): clipboard + pegado sintético (Ctrl+V vía `enigo`, patrón del spike R3) + restauración del clipboard anterior; degradación a pegado manual si falla. Selector "qué hacer con el texto" (insertar / solo copiar) en settings; default insert → el texto aparece solo donde está el cursor.
 
-**Pendiente de M2**: validar en Windows el overlay (no roba foco, sigue estados) y la inserción en VS Code/navegador/Notepad, más el selector de modo. La selección de combo por app activa (terminales con Ctrl+Shift+V) queda para los perfiles de pegado.
+**Validación (2026-07-03)**: verificado en Windows 11 — el overlay flotante aparece con los estados del ciclo sin robar el foco de la app activa, y la inserción automática (modo insert) hace que el texto transcrito aparezca solo donde está el cursor. La selección de combo por app activa (terminales con Ctrl+Shift+V) queda para los perfiles de pegado (post-MVP).
 
 ## Post-MVP (orden tentativo)
 
