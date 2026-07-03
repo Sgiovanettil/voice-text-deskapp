@@ -38,6 +38,10 @@ hound = "3"
 enigo = "0.6"
 arboard = "3"
 reqwest = { version = "0.13", default-features = false, features = ["json", "multipart", "rustls"] }
+
+# ashpd (portals XDG: GlobalShortcuts para R1, RemoteDesktop para M2) es
+# específico de Linux/D-Bus — depende de std::os::unix, no compila en Windows.
+[target.'cfg(target_os = "linux")'.dependencies]
 ashpd = { version = "0.13", features = ["tokio"] }
 
 [dev-dependencies]
