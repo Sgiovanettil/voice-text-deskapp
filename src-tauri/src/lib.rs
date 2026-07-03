@@ -23,6 +23,32 @@ use tauri::Manager;
 /// vida de la app (si se dropea, los logs dejan de escribirse).
 struct LogGuard(tracing_appender::non_blocking::WorkerGuard);
 
+/// Instala un panic hook que enruta todo panic al log de tracing (archivo)
+/// preservando el comportamiento por defecto (stderr/backtrace en dev). Debe
+/// llamarse después de inicializar el subscriber para que quede en el archivo.
+fn install_panic_hook() {
+    let default_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let location = info
+            .location()
+            .map(|l| format!("{}:{}:{}", l.file(), l.line(), l.column()))
+            .unwrap_or_else(|| "desconocida".into());
+        let message = info
+            .payload()
+            .downcast_ref::<&str>()
+            .map(|s| s.to_string())
+            .or_else(|| info.payload().downcast_ref::<String>().cloned())
+            .unwrap_or_else(|| "(sin mensaje)".into());
+        let thread = std::thread::current();
+        tracing::error!(
+            location,
+            thread = thread.name().unwrap_or("<sin nombre>"),
+            "panic: {message}"
+        );
+        default_hook(info);
+    }));
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -59,6 +85,12 @@ pub fn run() {
                 )
                 .init();
             app.manage(LogGuard(guard));
+
+            // Red de seguridad de observabilidad: sin esto, un panic en un hilo
+            // de trabajo (orquestador, efectos async, dwell del overlay) muere
+            // en silencio y el dictado deja de responder sin dejar rastro. El
+            // hook enruta cualquier panic al archivo de log con su ubicación.
+            install_panic_hook();
             tracing::info!(version = env!("CARGO_PKG_VERSION"), "VoiceText iniciando");
 
             let config_dir = app.path().app_config_dir()?;
