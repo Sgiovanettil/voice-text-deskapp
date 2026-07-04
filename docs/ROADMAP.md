@@ -10,7 +10,7 @@ Fuente de verdad del alcance por hito: [PRD §12](PRD.md#12-roadmap). Este docum
 | **M1 — Ciclo de dictado core** | Hotkey PTT + eventos de dominio + captura de audio + provider OpenAI + texto al clipboard. Primera versión usable. | ✅ **Completo y validado** end-to-end en Windows 11 (2026-07-03, instalador de desarrollo) |
 | **M2 — Inserción y overlay** | Inserción de texto en la app activa (según ADR-005 ya decidido); overlay con estados. | ✅ **Completo y validado** end-to-end en Windows 11 (2026-07-03) — overlay flotante se muestra sin robar foco e inserción automática (modo insert) llega donde está el cursor |
 | **M3 — Settings y residencia** | Tray, settings UI completa (con i18n), keyring, autostart, persistencia. | ✅ **Completo y validado** end-to-end en Windows 11 (2026-07-03) — bandeja con cerrar-a-bandeja, autostart sincronizado con el setting y UI de settings completa; keyring y persistencia venían de M1 |
-| M4 — Endurecimiento y release | Manejo de errores pulido, logging, empaquetado firmado compatible con updater y release automatizado → **v1.0**. | ⏳ Pendiente |
+| **M4 — Endurecimiento y release** | Manejo de errores pulido, logging, empaquetado firmado compatible con updater y release automatizado → **v1.0**. | ✅ **Completo** (2026-07-03) — panic hook + logging de fallos, firma de updater compatible, y release automatizado por tag: **v1.0.0** construido con bundles firmados (Windows NSIS/MSI, Linux AppImage/deb/rpm) + `latest.json`, publicado como Release en borrador |
 
 ### M0 — detalle de lo entregado
 
@@ -69,6 +69,30 @@ entregaron en M1; M3 aporta la residencia y completa la configuración:
 bandeja (cerrar-a-bandeja, click en el icono, menú), arranque automático que se registra/elimina
 al togglear, iniciar minimizado y cambio de idioma en vivo. Limitación conocida (aceptada): el
 menú nativo del tray cambia de idioma recién al reiniciar la app.
+
+### M4 — detalle de lo entregado (2026-07-03)
+
+1. **Observabilidad / endurecimiento**: panic hook global que enruta cualquier panic (incluidos
+   los de hilos de trabajo: orquestador, efectos async, dwell del overlay) al archivo de log con
+   ubicación y nombre de hilo; `DomainEvent::is_failure()` sube los eventos `*Failed` a `warn`
+   para que un ciclo fallido resalte en el log. El flujo ya degradaba bien (cada efecto convierte
+   errores en eventos de dominio), así que el foco fue la red de seguridad, no re-plumbing.
+2. **Firma de updater compatible** (RNF-09, ADR-010): `plugins.updater.pubkey` (minisign) en la
+   conf para que bundles y `latest.json` sean verificables por el updater oficial desde la primera
+   release. El updater sigue inactivo en runtime (sin endpoints, sin plugin) — su activación es
+   v1.x. Docs en `docs/RELEASING.md`.
+3. **Release automatizado → v1.0.0**: bump de versión por `release/1.0.0` → `main` (tag `v1.0.0`)
+   que dispara `release.yml`: changelog (git-cliff) + bundles firmados (Windows NSIS/MSI, Linux
+   AppImage/deb/rpm) + `latest.json`, publicados como **Release en borrador** para revisión y
+   publicación manual. Fix de CI en el camino: el job de release necesitaba `permissions:
+   contents: write` (el `GITHUB_TOKEN` es de solo-lectura por defecto).
+
+**Firma Authenticode de Windows**: diferida a post-v1.0 por decisión del autor — v1.0 usa solo la
+firma de updater (gratis); el instalador NSIS/MSI queda sin Authenticode, así que Windows muestra
+"editor desconocido" en SmartScreen. Agregarla después no requiere cambios estructurales.
+
+**MVP completo (v1.0)**: M0–M4 entregados; M1–M3 validados end-to-end en Windows 11. La v1.0.0
+quedó construida y firmada, a la espera de publicar el borrador.
 
 ## Post-MVP (orden tentativo)
 
