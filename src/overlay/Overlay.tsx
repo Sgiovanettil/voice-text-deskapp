@@ -21,7 +21,7 @@ interface OverlayState {
  *  colas que desaparecen. En v1.x-PR3 la fase `listening` pasará a usar el
  *  nivel real del micrófono. */
 function amp(u: number, i: number, t: number, phase: Phase, doneAt: number): number {
-  const env = Math.pow(Math.exp(-Math.pow((u - 0.5) / 0.17, 2)), 1.35);
+  const env = Math.pow(Math.exp(-Math.pow((u - 0.5) / 0.32, 2)), 1.1);
   switch (phase) {
     case "listening": {
       const s1 = Math.sin(t * 0.13 + i * 0.9);
@@ -168,8 +168,12 @@ function Overlay() {
       const live = phase === "listening" && performance.now() - lastLevelAtRef.current < 500;
       const history = levelHistoryRef.current;
       if (live) {
-        history.push(levelRef.current);
-        while (history.length > n) history.shift();
+        // Frame por medio: la onda se desplaza a la mitad de la velocidad de
+        // render, más legible que avanzar un punto por frame.
+        if (Math.floor(time) % 2 === 0) {
+          history.push(levelRef.current);
+          while (history.length > n) history.shift();
+        }
       } else if (history.length > 0) {
         history.length = 0;
       }
@@ -178,7 +182,7 @@ function Overlay() {
       for (let i = 0; i < n; i++) {
         const u = i / (n - 1);
         if (live) {
-          const env = Math.pow(Math.exp(-Math.pow((u - 0.5) / 0.17, 2)), 1.35);
+          const env = Math.pow(Math.exp(-Math.pow((u - 0.5) / 0.32, 2)), 1.1);
           const idx = history.length - n + i;
           const lvl = idx >= 0 ? history[idx] : 0;
           heights.push(Math.min(1, (0.06 + lvl * 1.35) * env));
