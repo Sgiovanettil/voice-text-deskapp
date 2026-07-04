@@ -53,6 +53,15 @@
       "autostart": "Iniciar VoiceText al encender el equipo",
       "startMinimized": "Iniciar minimizado en la bandeja del sistema",
       "saved": "Preferencia de inicio guardada."
+    },
+    "nav": {
+      "general": "General",
+      "recognition": "Reconocimiento",
+      "shortcuts": "Atajos",
+      "about": "Acerca de"
+    },
+    "about": {
+      "version": "Versión"
     }
   },
   "status": {
