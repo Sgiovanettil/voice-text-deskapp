@@ -54,12 +54,28 @@ function Overlay() {
   const [provider, setProvider] = useState<{ name: string; model: string } | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const phaseRef = useRef<Phase>("listening");
+  const phaseRef = useRef<Phase>("idle");
   const doneAtRef = useRef(0);
+  // Nivel real del micrófono ("audio-level", ~30 Hz): valor actual, historia
+  // que se desplaza bajo la onda y timestamp del último dato (para caer a la
+  // animación sintética si el backend no reporta niveles).
+  const levelRef = useRef(0);
+  const levelHistoryRef = useRef<number[]>([]);
+  const lastLevelAtRef = useRef(0);
 
   useEffect(() => {
     phaseRef.current = state.phase;
   }, [state.phase]);
+
+  useEffect(() => {
+    const unlisten = listen<number>("audio-level", ({ payload }) => {
+      levelRef.current = payload;
+      lastLevelAtRef.current = performance.now();
+    });
+    return () => {
+      unlisten.then((fn) => fn()).catch(() => {});
+    };
+  }, []);
 
   useEffect(() => {
     invoke<Settings>("get_settings")
@@ -145,9 +161,30 @@ function Overlay() {
       const col = getComputedStyle(canvas).getPropertyValue("--core").trim() || "#2fe8b4";
       const n = Math.floor(w / 3.5);
       const cy = h / 2;
+
+      // En "listening" con niveles reales frescos (<500 ms), la onda es la
+      // historia del micrófono desplazándose bajo la envolvente gaussiana;
+      // sin datos frescos se cae a la animación sintética por fase.
+      const live = phase === "listening" && performance.now() - lastLevelAtRef.current < 500;
+      const history = levelHistoryRef.current;
+      if (live) {
+        history.push(levelRef.current);
+        while (history.length > n) history.shift();
+      } else if (history.length > 0) {
+        history.length = 0;
+      }
+
       const heights: number[] = [];
       for (let i = 0; i < n; i++) {
-        heights.push(Math.min(1, amp(i / (n - 1), i, time, phase, doneAtRef.current)));
+        const u = i / (n - 1);
+        if (live) {
+          const env = Math.pow(Math.exp(-Math.pow((u - 0.5) / 0.17, 2)), 1.35);
+          const idx = history.length - n + i;
+          const lvl = idx >= 0 ? history[idx] : 0;
+          heights.push(Math.min(1, (0.06 + lvl * 1.35) * env));
+        } else {
+          heights.push(Math.min(1, amp(u, i, time, phase, doneAtRef.current)));
+        }
       }
       ctx.shadowBlur = 16;
       ctx.shadowColor = col;
