@@ -7,8 +7,9 @@
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
 const OVERLAY_LABEL: &str = "overlay";
-const OVERLAY_W: f64 = 300.0;
-const OVERLAY_H: f64 = 64.0;
+// Tamaño de la skin v1 "materia" (assets/design/overlay-prototype.html).
+const OVERLAY_W: f64 = 416.0;
+const OVERLAY_H: f64 = 118.0;
 /// Separación desde el borde inferior de la pantalla.
 const OVERLAY_MARGIN: f64 = 56.0;
 
