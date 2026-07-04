@@ -93,21 +93,30 @@ pub fn spawn(app: AppHandle) -> Sender<DomainEvent> {
             }
 
             match command {
-                Command::StartRecording => match Recorder::start() {
-                    Ok(r) => {
-                        recorder = Some(r);
-                        let _ = self_tx.send(DomainEvent::RecordingStarted {
-                            device_id: "default".into(),
-                            sample_rate: crate::audio::TARGET_SAMPLE_RATE,
-                        });
+                Command::StartRecording => {
+                    // Telemetría de UI (no evento de dominio): el nivel del
+                    // micrófono alimenta la onda del overlay a ~30 Hz. Va por
+                    // canal propio para no pasar por la máquina ni el log.
+                    let level_app = app.clone();
+                    let on_level: crate::audio::LevelCallback = Box::new(move |level| {
+                        let _ = level_app.emit("audio-level", level);
+                    });
+                    match Recorder::start_with_level(Some(on_level)) {
+                        Ok(r) => {
+                            recorder = Some(r);
+                            let _ = self_tx.send(DomainEvent::RecordingStarted {
+                                device_id: "default".into(),
+                                sample_rate: crate::audio::TARGET_SAMPLE_RATE,
+                            });
+                        }
+                        Err(e) => {
+                            let _ = self_tx.send(DomainEvent::RecordingFailed {
+                                error_key: e.error_key().into(),
+                                detail: e.to_string(),
+                            });
+                        }
                     }
-                    Err(e) => {
-                        let _ = self_tx.send(DomainEvent::RecordingFailed {
-                            error_key: e.error_key().into(),
-                            detail: e.to_string(),
-                        });
-                    }
-                },
+                }
                 Command::StopRecording => {
                     if let Some(r) = recorder.take() {
                         match r.stop() {
