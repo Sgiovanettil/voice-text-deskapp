@@ -41,7 +41,24 @@ body {
   height: 100%;
 }
 
+/* Zona de arrastre: cubre todo; el overlay no tiene controles clicables. */
+.overlay .drag {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  cursor: grab;
+}
+.overlay .drag:active {
+  cursor: grabbing;
+}
+
 /* Colores por estado — tonos "Mako" */
+.overlay[data-phase="idle"] {
+  --core: #26a184;
+  --core-hi: #8adfc6;
+  --core-deep: #0a5244;
+  --core-dark: #032b24;
+}
 .overlay[data-phase="listening"] {
   --core: #2fe8b4;
   --core-hi: #baffe9;

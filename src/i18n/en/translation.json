@@ -68,7 +68,8 @@
     "listening": "Listening…",
     "transcribing": "Transcribing…",
     "delivering": "Inserting…",
-    "done": "Done"
+    "done": "Done",
+    "idle": "Standing by"
   },
   "err": {
     "stt": {

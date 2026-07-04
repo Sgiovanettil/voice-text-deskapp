@@ -31,6 +31,16 @@ pub struct GeneralSettings {
     pub start_minimized: bool,
     #[serde(default = "default_output_mode")]
     pub output_mode: String,
+    /// Posición del overlay en píxeles físicos; `None` = abajo-centro.
+    #[serde(default)]
+    pub overlay_position: Option<OverlayPos>,
+}
+
+/// Posición persistida del overlay (píxeles físicos del monitor).
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub struct OverlayPos {
+    pub x: i32,
+    pub y: i32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -98,6 +108,7 @@ impl Default for GeneralSettings {
             autostart: false,
             start_minimized: true,
             output_mode: default_output_mode(),
+            overlay_position: None,
         }
     }
 }
