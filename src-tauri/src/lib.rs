@@ -49,6 +49,31 @@ fn install_panic_hook() {
     }));
 }
 
+/// Generación del último movimiento del overlay: cada `Moved` la incrementa y
+/// programa un guardado diferido que solo persiste si sigue siendo el último
+/// (debounce sin timers dedicados).
+static OVERLAY_MOVE_GEN: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// Persiste la posición del overlay ~600 ms después del último movimiento.
+fn overlay_moved(app: tauri::AppHandle, x: i32, y: i32) {
+    use std::sync::atomic::Ordering;
+    let gen = OVERLAY_MOVE_GEN.fetch_add(1, Ordering::SeqCst) + 1;
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(600));
+        if OVERLAY_MOVE_GEN.load(Ordering::SeqCst) != gen {
+            return; // hubo un movimiento más nuevo; ese guardará
+        }
+        let Some(state) = app.try_state::<ipc::commands::AppState>() else {
+            return;
+        };
+        let mut settings = state.settings.lock().expect("settings lock");
+        settings.general.overlay_position = Some(config::OverlayPos { x, y });
+        if let Err(e) = persistence::save_settings(&state.config_dir, &settings) {
+            tracing::warn!(error = %e, "no se pudo persistir la posición del overlay");
+        }
+    });
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -58,13 +83,21 @@ pub fn run() {
             None,
         ))
         .on_window_event(|window, event| {
-            // Cerrar la ventana de configuración la oculta a la bandeja en vez
-            // de terminar la app; se sale solo desde el menú del tray.
-            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                if window.label() == "settings" {
-                    let _ = window.hide();
-                    api.prevent_close();
+            match event {
+                // Cerrar la ventana de configuración la oculta a la bandeja en
+                // vez de terminar la app; se sale solo desde el menú del tray.
+                tauri::WindowEvent::CloseRequested { api, .. } => {
+                    if window.label() == "settings" {
+                        let _ = window.hide();
+                        api.prevent_close();
+                    }
                 }
+                // El usuario arrastró el overlay: persistir su posición con
+                // debounce (Moved dispara muchas veces durante el arrastre).
+                tauri::WindowEvent::Moved(pos) if window.label() == "overlay" => {
+                    overlay_moved(window.app_handle().clone(), pos.x, pos.y);
+                }
+                _ => {}
             }
         })
         .setup(|app| {
@@ -110,6 +143,10 @@ pub fn run() {
             // El setting es la fuente de verdad del arranque automático:
             // reconciliamos el estado real del SO contra él en cada arranque.
             autostart::reconcile(app.handle(), settings.general.autostart);
+
+            // Overlay residente: se crea al arranque y queda siempre visible,
+            // en la posición donde el usuario lo dejó (o abajo-centro).
+            core::overlay::show(app.handle(), settings.general.overlay_position);
 
             let event_tx = core::orchestrator::spawn(app.handle().clone());
             app.manage(ipc::commands::AppState::new(
