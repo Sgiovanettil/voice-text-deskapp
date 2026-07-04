@@ -68,7 +68,8 @@
     "listening": "Escuchando…",
     "transcribing": "Transcribiendo…",
     "delivering": "Insertando…",
-    "done": "Listo"
+    "done": "Listo",
+    "idle": "En espera"
   },
   "err": {
     "stt": {

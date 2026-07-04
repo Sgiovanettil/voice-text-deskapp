@@ -7,7 +7,10 @@ import type { DomainEvent } from "../shared/events";
 import type { Settings } from "../shared/settings";
 import "./Overlay.css";
 
-type Phase = "listening" | "transcribing" | "delivering" | "done" | "error";
+type Phase = "idle" | "listening" | "transcribing" | "delivering" | "done" | "error";
+
+/** Cuánto se muestra "Listo"/error antes de volver a reposo. */
+const DWELL_MS = 900;
 
 interface OverlayState {
   phase: Phase;
@@ -37,14 +40,16 @@ function amp(u: number, i: number, t: number, phase: Phase, doneAt: number): num
     }
     case "error":
       return (0.08 + 0.15 * Math.abs(Math.sin(t * 0.5 + i * 2.7))) * (0.3 + 0.7 * env);
+    case "idle":
+      return (0.06 + 0.09 * Math.abs(Math.sin(t * 0.04 + i * 0.5))) * env;
   }
 }
 
 function Overlay() {
   const { t } = useTranslation();
   const [state, setState] = useState<OverlayState>({
-    phase: "listening",
-    message: t("overlay.listening"),
+    phase: "idle",
+    message: t("overlay.idle"),
   });
   const [provider, setProvider] = useState<{ name: string; model: string } | null>(null);
 
@@ -63,7 +68,12 @@ function Overlay() {
   }, []);
 
   useEffect(() => {
+    // El overlay es residente: tras cerrar el ciclo (OverlayClosed) se
+    // muestra el desenlace un instante y se vuelve a reposo, salvo que otro
+    // ciclo haya arrancado entretanto (el timer se cancela con cada evento).
+    let dwell: ReturnType<typeof setTimeout> | undefined;
     const unlisten = listen<DomainEvent>("domain-event", ({ payload: ev }) => {
+      clearTimeout(dwell);
       switch (ev.event) {
         case "overlayOpened":
         case "recordingStarted":
@@ -84,11 +94,17 @@ function Overlay() {
         case "textDeliveryFailed":
           setState({ phase: "error", message: t(ev.payload.errorKey) });
           break;
+        case "overlayClosed":
+          dwell = setTimeout(() => {
+            setState({ phase: "idle", message: t("overlay.idle") });
+          }, DWELL_MS);
+          break;
         default:
           break;
       }
     });
     return () => {
+      clearTimeout(dwell);
       unlisten.then((fn) => fn()).catch(() => {});
     };
   }, [t]);
@@ -164,6 +180,8 @@ function Overlay() {
 
   return (
     <div className="overlay" data-phase={state.phase}>
+      {/* Zona de arrastre nativa: toda la superficie mueve la ventana. */}
+      <div className="drag" data-tauri-drag-region aria-hidden="true" />
       <div className="chassis" aria-hidden="true" />
       <div className="socket" aria-hidden="true">
         <div className="core">
