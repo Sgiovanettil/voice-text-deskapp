@@ -53,6 +53,15 @@
       "autostart": "Start VoiceText when the computer turns on",
       "startMinimized": "Start minimized to the system tray",
       "saved": "Startup preference saved."
+    },
+    "nav": {
+      "general": "General",
+      "recognition": "Recognition",
+      "shortcuts": "Shortcuts",
+      "about": "About"
+    },
+    "about": {
+      "version": "Version"
     }
   },
   "status": {

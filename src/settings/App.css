@@ -1,190 +1,319 @@
+/* Ventana de configuración con la piel "materia" (skin v1, mismo lenguaje
+   visual del overlay): fondo de fierro oscuro, sidebar con el orbe como
+   identidad y paneles limpios. Referencia: assets/design/overlay-prototype. */
+
 :root {
-  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
-  font-size: 16px;
-  line-height: 24px;
-  font-weight: 400;
+  color-scheme: dark;
+  font-family: "Bahnschrift", "Segoe UI", system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
 
-  color: #0f0f0f;
-  background-color: #f6f6f6;
+  --core: #2fe8b4;
+  --core-hi: #baffe9;
+  --core-deep: #0a6e58;
 
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
+  --bg: #0c1517;
+  --panel: #101a1c;
+  --edge: #1e2c2e;
+  --edge-soft: #223234;
+  --ink: #d6efe6;
+  --ink-dim: #7fa89d;
+  --ink-faint: #4d6c64;
+
+  color: var(--ink);
+  background-color: var(--bg);
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  -webkit-text-size-adjust: 100%;
 }
 
-.container {
-  margin: 0 auto;
-  max-width: 560px;
-  padding: 2rem 1.5rem;
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  height: 100vh;
+  overflow: hidden;
+}
+
+#root {
+  height: 100vh;
+}
+
+/* ===== Estructura: sidebar + panel ===== */
+.shell {
+  display: grid;
+  grid-template-columns: 168px 1fr;
+  height: 100vh;
+}
+
+.side {
+  padding: 14px 10px;
+  border-right: 1px solid var(--edge);
+  background: linear-gradient(180deg, rgba(10, 22, 22, 0.55), transparent);
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 3px;
 }
 
-h1 {
+/* El orbe como identidad de la app (versión mini de la materia) */
+.avatar {
+  position: relative;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  margin: 6px 8px 16px;
+  background: radial-gradient(
+    circle at 42% 38%,
+    color-mix(in srgb, var(--core) 55%, var(--core-deep)) 0%,
+    var(--core-deep) 45%,
+    #032420 75%,
+    #010504 100%
+  );
+  box-shadow:
+    inset 0 3px 5px -2px rgba(0, 0, 0, 0.9),
+    inset 3px 4px 8px rgba(0, 0, 0, 0.5),
+    0 0 18px color-mix(in srgb, var(--core) 40%, transparent);
+}
+.avatar-heart {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(
+    46% 42% at 42% 38%,
+    var(--core-hi) 0%,
+    var(--core) 30%,
+    transparent 72%
+  );
+  filter: blur(1.5px);
+  animation: heartbeat 3.2s ease-in-out infinite;
+}
+.avatar-glass {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(12% 9% at 32% 21%, rgba(255, 255, 255, 0.95) 0%, transparent 80%),
+    radial-gradient(6% 5% at 70% 78%, rgba(255, 255, 255, 0.7) 0%, transparent 85%);
+}
+@keyframes heartbeat {
+  0%,
+  100% {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+}
+
+.nav-item {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  border-radius: 7px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  color: var(--ink-dim);
+  cursor: pointer;
+  transition:
+    background 0.2s,
+    color 0.2s;
+}
+.nav-item:hover {
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.03);
+}
+.nav-item.active {
+  color: var(--core-hi);
+  background: color-mix(in srgb, var(--core) 10%, transparent);
+  box-shadow: inset 2px 0 0 var(--core);
+}
+.nav-item:focus-visible {
+  outline: 2px solid var(--core);
+  outline-offset: 1px;
+}
+
+/* ===== Panel de contenido ===== */
+.panel {
+  padding: 18px 22px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.panel-title {
   margin: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--core-hi);
+  text-shadow: 0 0 12px color-mix(in srgb, var(--core) 45%, transparent);
 }
 
-h2 {
-  font-size: 1.1rem;
-  margin: 0 0 0.25rem;
+.group {
+  padding: 14px 16px;
+  border-radius: 9px;
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
-section {
-  padding: 1rem;
-  border-radius: 8px;
-  background-color: #ffffff;
-  border: 1px solid #e0e0e0;
-}
-
-.subtitle {
-  margin: 0;
-  opacity: 0.7;
+.group h3 {
+  margin: 0 0 8px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--ink);
 }
 
 .hint {
-  margin: 0 0 0.5rem;
-  font-size: 0.9rem;
-  opacity: 0.7;
+  margin: 0 0 10px;
+  font-size: 0.84rem;
+  color: var(--ink-dim);
 }
 
 .row {
   display: flex;
-  gap: 0.5rem;
-}
-
-.radio-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.25rem 0;
-  cursor: pointer;
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  padding: 0.25rem 0;
-  font-size: 0.95rem;
-}
-
-.field select {
-  padding: 0.5rem 0.75rem;
-  border-radius: 6px;
-  border: 1px solid #c9c9c9;
-  font-size: 0.95rem;
-  background-color: inherit;
-  color: inherit;
+  gap: 8px;
 }
 
 .row input {
   flex: 1;
-  padding: 0.5rem 0.75rem;
+  min-width: 0;
+  padding: 8px 12px;
   border-radius: 6px;
-  border: 1px solid #c9c9c9;
-  font-size: 0.95rem;
-  background-color: inherit;
+  border: 1px solid var(--edge-soft);
+  font-family: inherit;
+  font-size: 0.88rem;
+  background-color: #0a1517;
   color: inherit;
+}
+.row input:focus-visible {
+  outline: none;
+  border-color: var(--core-deep);
+}
+
+.field {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 0;
+  font-size: 0.84rem;
+  color: var(--ink-dim);
+}
+
+.field select {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--edge-soft);
+  font-family: inherit;
+  font-size: 0.86rem;
+  background-color: #0a1517;
+  color: var(--ink);
+}
+.field select:hover:not(:disabled) {
+  border-color: #2f4547;
+}
+.field select:focus-visible {
+  outline: none;
+  border-color: var(--core-deep);
+}
+
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 5px 0;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+.check-row input {
+  accent-color: var(--core);
 }
 
 button {
-  padding: 0.5rem 0.9rem;
+  padding: 8px 14px;
   border-radius: 6px;
-  border: 1px solid #c9c9c9;
-  background-color: #ffffff;
+  border: 1px solid #2a3d40;
+  background-color: #142225;
   color: inherit;
-  font-size: 0.95rem;
+  font-family: inherit;
+  font-size: 0.86rem;
   cursor: pointer;
+  transition:
+    border-color 0.2s,
+    color 0.2s;
 }
 
 button:hover:not(:disabled) {
-  border-color: #396cd8;
+  border-color: var(--core-deep);
+  color: var(--core-hi);
 }
 
 button:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: default;
 }
 
+button:focus-visible {
+  outline: 2px solid var(--core);
+  outline-offset: 1px;
+}
+
 .feedback-ok {
-  color: #1a7f37;
+  color: #6fe8b8;
   margin: 0;
+  font-size: 0.86rem;
 }
 
 .feedback-error {
-  color: #c62828;
+  color: #ff9a94;
   margin: 0;
+  font-size: 0.86rem;
 }
 
 .status {
   margin: 0;
   font-weight: 500;
+  font-size: 0.9rem;
 }
 
 .status-busy {
-  color: #396cd8;
+  color: #8ecfff;
 }
 
 .status-ok {
-  color: #1a7f37;
+  color: #6fe8b8;
 }
 
 .status-error {
-  color: #c62828;
+  color: #ff9a94;
+}
+
+.status-idle {
+  color: var(--ink-dim);
 }
 
 .transcript {
   margin: 0;
-  padding: 0.5rem 0.75rem;
+  padding: 8px 12px;
   border-radius: 6px;
-  background-color: #f0f0f0;
-  font-size: 0.95rem;
+  background-color: #0a1416;
+  border: 1px solid var(--edge);
+  font-size: 0.88rem;
   white-space: pre-wrap;
   word-break: break-word;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    color: #f6f6f6;
-    background-color: #2f2f2f;
-  }
-
-  section {
-    background-color: #3a3a3a;
-    border-color: #4a4a4a;
-  }
-
-  .row input,
-  .field select,
-  button {
-    background-color: #2f2f2f;
-    border-color: #555;
-  }
-
-  .feedback-ok {
-    color: #6fd18a;
-  }
-
-  .feedback-error {
-    color: #ef9a9a;
-  }
-
-  .status-busy {
-    color: #8ab4f8;
-  }
-
-  .status-ok {
-    color: #6fd18a;
-  }
-
-  .status-error {
-    color: #ef9a9a;
-  }
-
-  .transcript {
-    background-color: #2a2a2a;
+@media (prefers-reduced-motion: reduce) {
+  .avatar-heart {
+    animation: none;
   }
 }
