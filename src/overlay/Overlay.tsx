@@ -77,6 +77,24 @@ function Overlay() {
     };
   }, []);
 
+  // Modo toggle (ADR-0011): el backend emite "vad-speaking" solo cuando el VAD
+  // está armado. En escucha, el silencio muestra que el cierre viene solo.
+  useEffect(() => {
+    const unlisten = listen<boolean>("vad-speaking", ({ payload: speaking }) => {
+      setState((prev) =>
+        prev.phase === "listening"
+          ? {
+              phase: "listening",
+              message: speaking ? t("overlay.listening") : t("overlay.silence"),
+            }
+          : prev,
+      );
+    });
+    return () => {
+      unlisten.then((fn) => fn()).catch(() => {});
+    };
+  }, [t]);
+
   useEffect(() => {
     invoke<Settings>("get_settings")
       .then((s) => setProvider({ name: s.stt.provider, model: s.stt.model }))

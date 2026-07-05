@@ -410,8 +410,39 @@ function App() {
           <>
             <h2 className="panel-title">{t("settings.nav.shortcuts")}</h2>
             <section className="group">
+              <h3>{t("settings.activation.label")}</h3>
+              <label className="check-row">
+                <input
+                  type="radio"
+                  name="activation-mode"
+                  checked={settings?.general.activation_mode !== "toggle"}
+                  disabled={!settings}
+                  onChange={() =>
+                    patchGeneral({ activation_mode: "ptt" }, "settings.activation.saved")
+                  }
+                />
+                {t("settings.activation.ptt")}
+              </label>
+              <label className="check-row">
+                <input
+                  type="radio"
+                  name="activation-mode"
+                  checked={settings?.general.activation_mode === "toggle"}
+                  disabled={!settings}
+                  onChange={() =>
+                    patchGeneral({ activation_mode: "toggle" }, "settings.activation.saved")
+                  }
+                />
+                {t("settings.activation.toggle")}
+              </label>
+            </section>
+            <section className="group">
               <h3>{t("settings.hotkey.label")}</h3>
-              <p className="hint">{t("settings.hotkey.help")}</p>
+              <p className="hint">
+                {settings?.general.activation_mode === "toggle"
+                  ? t("settings.hotkey.helpToggle")
+                  : t("settings.hotkey.help")}
+              </p>
               <div className="row">
                 <input
                   type="text"
@@ -434,7 +465,13 @@ function App() {
             <section className="group">
               <h3>{t("status.label")}</h3>
               <p role="status" className={`status status-${cycleStatus?.kind ?? "idle"}`}>
-                {cycleStatus?.text ?? t("status.idle", { hotkey: settings?.general.hotkey ?? "…" })}
+                {cycleStatus?.text ??
+                  t(
+                    settings?.general.activation_mode === "toggle"
+                      ? "status.idleToggle"
+                      : "status.idle",
+                    { hotkey: settings?.general.hotkey ?? "…" },
+                  )}
               </p>
               {lastTranscript !== null && (
                 <>

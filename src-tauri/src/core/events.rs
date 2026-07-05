@@ -31,6 +31,13 @@ pub enum DomainEvent {
     HotkeyReleased {
         timestamp: i64,
     },
+    /// Silencio sostenido detectado por el VAD durante la grabación
+    /// (ADR-0011): en modo toggle corta el dictado igual que soltar el
+    /// hotkey en PTT; en PTT se ignora.
+    #[serde(rename_all = "camelCase")]
+    SilenceDetected {
+        silence_ms: u64,
+    },
     OverlayOpened {
         mode: OverlayMode,
     },
@@ -140,6 +147,11 @@ mod tests {
         insta::assert_json_snapshot!(DomainEvent::HotkeyReleased {
             timestamp: 1_700_000_001
         });
+    }
+
+    #[test]
+    fn snapshot_silence_detected() {
+        insta::assert_json_snapshot!(DomainEvent::SilenceDetected { silence_ms: 1_200 });
     }
 
     #[test]
