@@ -16,8 +16,11 @@ mod persistence;
 mod providers;
 mod speech;
 mod tray;
+mod updater;
 
-use tauri::Manager;
+use tauri::{Emitter, Manager};
+
+use crate::core::events::DomainEvent;
 
 /// Mantiene vivo el writer no bloqueante de tracing-appender durante toda la
 /// vida de la app (si se dropea, los logs dejan de escribirse).
@@ -82,6 +85,7 @@ pub fn run() {
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             None,
         ))
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .on_window_event(|window, event| {
             match event {
                 // Cerrar la ventana de configuración la oculta a la bandeja en
@@ -162,6 +166,30 @@ pub fn run() {
             }) {
                 tracing::error!(error = %e, hotkey, "no se pudo registrar el hotkey inicial");
             }
+
+            // Auto-chequeo de actualización al arranque (ADR-0010): si hay una
+            // versión nueva se avisa por `domain-event`; el usuario decide si la
+            // instala. En dev no hay updater y falla de forma esperada (debug).
+            let update_app = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                match updater::check(&update_app).await {
+                    Ok(Some(info)) => {
+                        tracing::info!(version = %info.version, "actualización disponible");
+                        let _ = update_app.emit(
+                            "domain-event",
+                            &DomainEvent::UpdateAvailable {
+                                version: info.version,
+                                notes: info.notes,
+                                pub_date: info.pub_date,
+                            },
+                        );
+                    }
+                    Ok(None) => tracing::debug!("la app está en la última versión"),
+                    Err(e) => {
+                        tracing::debug!(code = %e.code, "auto-chequeo de update sin éxito")
+                    }
+                }
+            });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -171,6 +199,8 @@ pub fn run() {
             ipc::commands::get_api_key_status,
             ipc::commands::test_provider,
             ipc::commands::get_app_state,
+            updater::check_for_update,
+            updater::install_update,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

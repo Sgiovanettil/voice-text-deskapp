@@ -28,4 +28,16 @@ export type DomainEvent =
   | { event: "textDeliveryCompleted"; payload: { mode: DeliveryMode; chars: number } }
   | { event: "textDeliveryFailed"; payload: { errorKey: string; fallbackUsed: boolean } }
   | { event: "overlayClosed"; payload: { outcome: OverlayOutcome } }
-  | { event: "configChanged"; payload: { changedKeys: string[] } };
+  | { event: "configChanged"; payload: { changedKeys: string[] } }
+  | {
+      event: "updateAvailable";
+      payload: { version: string; notes: string; pubDate: string | null };
+    }
+  | {
+      event: "updateDownloadProgress";
+      payload: { downloaded: number; contentLength: number | null };
+    }
+  | { event: "updateFailed"; payload: { errorKey: string; detail: string } };
+
+// Info de una actualización disponible (retorno de `check_for_update`).
+export type UpdateInfo = { version: string; notes: string; pubDate: string | null };

@@ -312,6 +312,46 @@ button:focus-visible {
   word-break: break-word;
 }
 
+.update-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding: 14px 16px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--core) 8%, var(--panel));
+  border: 1px solid color-mix(in srgb, var(--core) 45%, var(--edge));
+  box-shadow: 0 0 18px color-mix(in srgb, var(--core) 18%, transparent);
+}
+
+.update-title {
+  color: var(--core-hi);
+  font-size: 0.95rem;
+  text-shadow: 0 0 10px color-mix(in srgb, var(--core) 40%, transparent);
+}
+
+.update-notes {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.update-cta {
+  align-self: flex-start;
+}
+
+.update-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.update-progress progress {
+  width: 100%;
+  height: 8px;
+  accent-color: var(--core);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .avatar-heart {
     animation: none;

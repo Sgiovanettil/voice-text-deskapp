@@ -32,6 +32,16 @@ se envía al proveedor configurado por acción explícita del usuario y nunca se
 disco salvo flag de debug explícito. Política de retención del proveedor: TODO — documentar
 enlace a la política vigente de OpenAI antes de la primera release (PRD §15.8).
 
+## Actualizaciones automáticas
+
+La app comprueba si hay una versión nueva al arrancar (y desde **Configuración → Acerca de →
+Buscar actualizaciones**). Si la hay, avisa y actualiza solo con tu confirmación; nunca instala
+en silencio. Los bundles vienen firmados y verificados (updater oficial de Tauri, ver
+[ADR-0010](docs/adr/0010-auto-update-preparado.md) y [docs/RELEASING.md](docs/RELEASING.md)).
+
+En **Linux** el auto-update cubre el **AppImage**; el paquete **`.deb`** se actualiza por el
+gestor de paquetes de la distribución, no por la app.
+
 ## Licencia
 
 TODO — pendiente de decidir.
