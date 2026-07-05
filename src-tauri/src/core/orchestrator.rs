@@ -11,15 +11,10 @@ use tauri::{AppHandle, Emitter, Manager};
 
 use crate::audio::{AudioData, Recorder};
 use crate::core::events::{DomainEvent, OverlayMode, OverlayOutcome};
-use crate::core::overlay;
 use crate::core::state_machine::{Command, CoreState, StateMachine};
 use crate::delivery::DeliveryMode;
 use crate::ipc::commands::AppState;
 use crate::speech::{SpeechProvider, TranscribeOptions};
-
-/// Cuánto permanece visible el overlay tras cerrar el ciclo (mostrar "Listo"
-/// o el error) antes de ocultarse, si no arrancó un ciclo nuevo entretanto.
-const OVERLAY_DWELL: Duration = Duration::from_millis(900);
 
 /// Intervalo del tick de timeouts (§3: corte de 120 s, reset de Error ~3 s).
 const TICK: Duration = Duration::from_millis(250);
@@ -75,13 +70,12 @@ pub fn spawn(app: AppHandle) -> Sender<DomainEvent> {
                 *state.core_state.lock().expect("core state lock") = sm.state();
             }
 
-            // Ciclo de vida del overlay ligado a las transiciones del core
-            // (ARCHITECTURE §3, invariante: RecordingStarted siempre tras
-            // OverlayOpened). El overlay React arranca en "Escuchando", así
-            // que aunque OverlayOpened llegue antes de que suscriba, no hay
-            // ventana en blanco.
+            // Eventos de ciclo del overlay ligados a las transiciones del core
+            // (ARCHITECTURE §3). Desde v1.x el overlay es residente (lo crea
+            // lib.rs al arranque y nunca se oculta): OverlayOpened/Closed ya
+            // no muestran/ocultan la ventana, solo marcan el ciclo — el
+            // frontend los usa para pasar de "en espera" a activo y volver.
             if prev_state == CoreState::Idle && new_state == CoreState::Recording {
-                overlay::show(&app);
                 let _ = app.emit(
                     "domain-event",
                     &DomainEvent::OverlayOpened {
@@ -96,37 +90,33 @@ pub fn spawn(app: AppHandle) -> Sender<DomainEvent> {
                     OverlayOutcome::Ok
                 };
                 let _ = app.emit("domain-event", &DomainEvent::OverlayClosed { outcome });
-                // Se oculta tras un breve dwell para que se vea "Listo"/error;
-                // si arranca un ciclo nuevo en ese lapso, no se oculta.
-                let app_hide = app.clone();
-                std::thread::spawn(move || {
-                    std::thread::sleep(OVERLAY_DWELL);
-                    let still_idle = app_hide
-                        .try_state::<AppState>()
-                        .map(|s| *s.core_state.lock().expect("core state lock") == CoreState::Idle)
-                        .unwrap_or(true);
-                    if still_idle {
-                        overlay::hide(&app_hide);
-                    }
-                });
             }
 
             match command {
-                Command::StartRecording => match Recorder::start() {
-                    Ok(r) => {
-                        recorder = Some(r);
-                        let _ = self_tx.send(DomainEvent::RecordingStarted {
-                            device_id: "default".into(),
-                            sample_rate: crate::audio::TARGET_SAMPLE_RATE,
-                        });
+                Command::StartRecording => {
+                    // Telemetría de UI (no evento de dominio): el nivel del
+                    // micrófono alimenta la onda del overlay a ~30 Hz. Va por
+                    // canal propio para no pasar por la máquina ni el log.
+                    let level_app = app.clone();
+                    let on_level: crate::audio::LevelCallback = Box::new(move |level| {
+                        let _ = level_app.emit("audio-level", level);
+                    });
+                    match Recorder::start_with_level(Some(on_level)) {
+                        Ok(r) => {
+                            recorder = Some(r);
+                            let _ = self_tx.send(DomainEvent::RecordingStarted {
+                                device_id: "default".into(),
+                                sample_rate: crate::audio::TARGET_SAMPLE_RATE,
+                            });
+                        }
+                        Err(e) => {
+                            let _ = self_tx.send(DomainEvent::RecordingFailed {
+                                error_key: e.error_key().into(),
+                                detail: e.to_string(),
+                            });
+                        }
                     }
-                    Err(e) => {
-                        let _ = self_tx.send(DomainEvent::RecordingFailed {
-                            error_key: e.error_key().into(),
-                            detail: e.to_string(),
-                        });
-                    }
-                },
+                }
                 Command::StopRecording => {
                     if let Some(r) = recorder.take() {
                         match r.stop() {

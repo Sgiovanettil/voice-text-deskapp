@@ -1,22 +1,26 @@
 //! Gestión de la ventana flotante del overlay (ARCHITECTURE §4.9). Ventana
 //! sin foco, siempre encima, sin decoraciones, transparente y fuera de la
-//! barra de tareas — validada por el spike R2 en Windows. Se crea de forma
-//! perezosa la primera vez que hace falta y luego se reutiliza (show/hide)
-//! para no pagar el arranque del webview en cada ciclo.
+//! barra de tareas — validada por el spike R2 en Windows. Desde v1.x el
+//! overlay es residente: se crea al arranque, queda siempre visible y el
+//! usuario lo arrastra a gusto (drag region en el frontend); su posición se
+//! persiste en settings (`general.overlay_position`).
 
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
+use crate::config::OverlayPos;
+
 const OVERLAY_LABEL: &str = "overlay";
-const OVERLAY_W: f64 = 300.0;
-const OVERLAY_H: f64 = 64.0;
-/// Separación desde el borde inferior de la pantalla.
+// Tamaño de la skin v1 "materia" (assets/design/overlay-prototype.html).
+const OVERLAY_W: f64 = 416.0;
+const OVERLAY_H: f64 = 118.0;
+/// Separación desde el borde inferior de la pantalla (posición por defecto).
 const OVERLAY_MARGIN: f64 = 56.0;
 
-/// Muestra el overlay, creándolo si aún no existe. No roba el foco
-/// (`focusable(false)`), así que el cursor sigue en la app del usuario.
-pub fn show(app: &AppHandle) {
+/// Crea el overlay residente y lo muestra. `saved` es la posición persistida
+/// (píxeles físicos); sin ella se posiciona abajo-centro del monitor primario.
+pub fn show(app: &AppHandle, saved: Option<OverlayPos>) {
     if let Some(win) = app.get_webview_window(OVERLAY_LABEL) {
-        position_bottom_center(&win);
+        position(&win, saved);
         let _ = win.show();
         return;
     }
@@ -34,17 +38,19 @@ pub fn show(app: &AppHandle) {
         .build()
     {
         Ok(win) => {
-            position_bottom_center(&win);
+            position(&win, saved);
             let _ = win.show();
         }
         Err(e) => tracing::error!(error = %e, "no se pudo crear la ventana overlay"),
     }
 }
 
-pub fn hide(app: &AppHandle) {
-    if let Some(win) = app.get_webview_window(OVERLAY_LABEL) {
-        let _ = win.hide();
+fn position(win: &WebviewWindow, saved: Option<OverlayPos>) {
+    if let Some(pos) = saved {
+        let _ = win.set_position(tauri::PhysicalPosition::new(pos.x, pos.y));
+        return;
     }
+    position_bottom_center(win);
 }
 
 /// Centra el overlay horizontalmente sobre el monitor primario, cerca del

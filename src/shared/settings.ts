@@ -15,6 +15,12 @@ export interface GeneralSettings {
   autostart: boolean;
   start_minimized: boolean;
   output_mode: string;
+  overlay_position: OverlayPos | null;
+}
+
+export interface OverlayPos {
+  x: number;
+  y: number;
 }
 
 export interface SttSettings {

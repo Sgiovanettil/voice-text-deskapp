@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "VoiceText",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "identifier": "dev.sgiovanettil.voicetext",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -14,8 +14,8 @@
       {
         "label": "settings",
         "title": "VoiceText — Configuración",
-        "width": 480,
-        "height": 640,
+        "width": 720,
+        "height": 560,
         "visible": false,
         "resizable": true
       }
@@ -26,6 +26,9 @@
   },
   "plugins": {
     "updater": {
+      "endpoints": [
+        "https://github.com/Sgiovanettil/voice-text-deskapp/releases/latest/download/latest.json"
+      ],
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDhERkU1OUI5RUEyQjQyMjYKUldRbVFpdnF1Vm4ramJJZ2pZSzhMRmo4OCszLzd3QkFiL041anNJU0p4YmR3UXhkUnQwVVFXTlkK"
     }
   },

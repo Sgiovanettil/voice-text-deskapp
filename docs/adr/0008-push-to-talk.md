@@ -15,5 +15,5 @@ El MVP implementa **exclusivamente Push-to-Talk**: la grabación dura exactament
 
 ## Consecuencias
 - (+) UX predecible; implementación mínima; privacidad clara (se graba solo mientras se presiona).
-- (−) Dictados largos exigen mantener la tecla; incómodo para manos ocupadas → toggle y VAD en v1.x.
+- (−) Dictados largos exigen mantener la tecla; incómodo para manos ocupadas → toggle y VAD en v1.x, especificados en [ADR-0011](0011-activacion-toggle-vad.md).
 - (−) Algunos teclados/SO tienen límites con auto-repeat de teclas modificadoras: el spike de hotkeys debe validar press/release confiables.

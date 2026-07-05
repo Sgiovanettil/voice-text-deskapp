@@ -10,10 +10,14 @@ Cómo se publica una versión y cómo está configurada la firma. Contexto de de
 | **Firma de updater** (minisign de Tauri) | Que el updater oficial pueda **verificar** que un bundle/`latest.json` es auténtico antes de instalarlo. Exigida por RNF-09/ADR-010 desde la primera release. | ✅ Activa | Gratis |
 | **Authenticode** (code-signing de Windows) | Quitar el aviso "editor desconocido" de SmartScreen al instalar. **No** es requisito del updater. | ⏸️ Diferida (post-v1.0) | Certificado de CA (~US$200-400/año) |
 
-> El **updater en runtime está inactivo** en el MVP (ADR-010): la app no descarga ni instala
-> actualizaciones. Solo garantizamos que los bundles y su `latest.json` son **compatibles y
-> verificables** para cuando se active (v1.x). Por eso `plugins.updater` en `tauri.conf.json`
-> tiene `pubkey` pero **no** `endpoints` — los endpoints se agregan al activar el updater.
+> El **updater en runtime está activo** (ADR-010, v1.x): la app consulta el `latest.json` del
+> Release al arrancar y desde el botón "Buscar actualizaciones" (Configuración → Acerca de),
+> avisa si hay versión nueva y —si el usuario acepta— descarga el bundle firmado y reinicia.
+> El endpoint configurado en `plugins.updater.endpoints` es
+> `https://github.com/Sgiovanettil/voice-text-deskapp/releases/latest/download/latest.json`, que
+> solo sirve el `latest.json` del **Release publicado** más reciente. Por eso un Release en
+> **borrador no es visible** para las apps instaladas: la actualización llega recién al publicarlo
+> a mano (control de calidad — ver "Publicar una versión").
 
 ## Firma de updater: claves y secrets
 

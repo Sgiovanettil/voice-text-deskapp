@@ -1,0 +1,11 @@
+---
+source: src/core/events.rs
+expression: "DomainEvent::UpdateDownloadProgress\n{ downloaded: 1_048_576, content_length: Some(8_388_608), }"
+---
+{
+  "event": "updateDownloadProgress",
+  "payload": {
+    "downloaded": 1048576,
+    "contentLength": 8388608
+  }
+}
