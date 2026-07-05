@@ -96,6 +96,6 @@ quedó construida y firmada, a la espera de publicar el borrador.
 
 ## Post-MVP (orden tentativo)
 
-1. **v1.x:** activación del auto-updater (Windows + AppImage), toggle + VAD, selección de micrófono, segundo proveedor STT (valida ADR-003), diccionario personal/reemplazos, inglés en la UI, ampliación de la matriz Wayland (compositores wlroots).
-2. **v2.x:** streaming STT, Event Bus formal con suscriptores dinámicos, capacidad **LLM** (post-procesado del dictado: limpieza, formato, comandos de voz "en modo prompt").
+1. **v1.x:** activación del auto-updater (Windows + AppImage), toggle + VAD ([ADR-0011](adr/0011-activacion-toggle-vad.md)), selección de micrófono (spec en ARCHITECTURE §4.3), segundo proveedor STT: Groq ([ADR-0012](adr/0012-segundo-proveedor-stt-groq.md), valida ADR-003), diccionario personal/reemplazos ([ADR-0013](adr/0013-diccionario-personal.md)), inglés en la UI, ampliación de la matriz Wayland (compositores wlroots).
+2. **v2.x:** streaming STT, Event Bus formal con suscriptores dinámicos, capacidad **LLM** (post-procesado del dictado: limpieza, formato, comandos de voz "en modo prompt" — spec anticipada en [ADR-0014](adr/0014-modos-dictado-postprocesado-llm.md)).
 3. **v3.x+:** TTS, Vision (capturas), Embeddings/RAG, Realtime, plugins; macOS.
