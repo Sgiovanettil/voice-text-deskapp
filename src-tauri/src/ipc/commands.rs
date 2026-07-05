@@ -43,7 +43,7 @@ pub struct IpcError {
 }
 
 impl IpcError {
-    fn new(code: impl Into<String>, error_key: impl Into<String>) -> Self {
+    pub(crate) fn new(code: impl Into<String>, error_key: impl Into<String>) -> Self {
         Self {
             code: code.into(),
             error_key: error_key.into(),

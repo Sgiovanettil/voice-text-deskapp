@@ -1,0 +1,11 @@
+---
+source: src/core/events.rs
+expression: "DomainEvent::UpdateFailed\n{ error_key: \"err.update.network\".into(), detail: \"connection reset\".into(), }"
+---
+{
+  "event": "updateFailed",
+  "payload": {
+    "errorKey": "err.update.network",
+    "detail": "connection reset"
+  }
+}

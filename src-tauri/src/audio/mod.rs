@@ -135,14 +135,28 @@ pub struct Recorder {
     thread: JoinHandle<Result<AudioData, AudioError>>,
 }
 
+/// Callback de nivel de entrada (0..1, RMS normalizado), invocado desde el
+/// hilo de captura con throttle. Telemetría para la onda del overlay.
+pub type LevelCallback = Box<dyn Fn(f32) + Send + 'static>;
+
+/// Cada cuánto se reporta el nivel (≈30 Hz: fluido sin inundar el IPC).
+const LEVEL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(33);
+/// Ganancia para llevar el RMS de voz típico a un rango visual útil.
+const LEVEL_GAIN: f32 = 6.0;
+
 impl Recorder {
     /// Abre el dispositivo de entrada por defecto y empieza a capturar.
     /// Devuelve error si no hay dispositivo o el stream no arranca.
     pub fn start() -> Result<Self, AudioError> {
+        Self::start_with_level(None)
+    }
+
+    /// Como [`Recorder::start`], reportando además el nivel de entrada.
+    pub fn start_with_level(on_level: Option<LevelCallback>) -> Result<Self, AudioError> {
         let (stop_tx, stop_rx) = mpsc::channel::<()>();
         let (ready_tx, ready_rx) = mpsc::channel::<Result<(), AudioError>>();
 
-        let thread = std::thread::spawn(move || capture_thread(&stop_rx, &ready_tx));
+        let thread = std::thread::spawn(move || capture_thread(&stop_rx, &ready_tx, on_level));
 
         match ready_rx.recv() {
             Ok(Ok(())) => Ok(Self { stop_tx, thread }),
@@ -166,6 +180,7 @@ impl Recorder {
 fn capture_thread(
     stop_rx: &mpsc::Receiver<()>,
     ready_tx: &mpsc::Sender<Result<(), AudioError>>,
+    on_level: Option<LevelCallback>,
 ) -> Result<AudioData, AudioError> {
     let host = cpal::default_host();
     let Some(device) = host.default_input_device() else {
@@ -186,7 +201,17 @@ fn capture_thread(
 
     let buffer = Arc::new(Mutex::new(Vec::<f32>::new()));
     let writer = Arc::clone(&buffer);
+    let mut last_level = std::time::Instant::now() - LEVEL_INTERVAL;
     let push = move |data: &[f32]| {
+        // Nivel RMS del chunk, con throttle: alimenta la onda del overlay.
+        if let Some(cb) = &on_level {
+            if last_level.elapsed() >= LEVEL_INTERVAL && !data.is_empty() {
+                last_level = std::time::Instant::now();
+                let sum_sq: f32 = data.iter().map(|s| s * s).sum();
+                let rms = (sum_sq / data.len() as f32).sqrt();
+                cb((rms * LEVEL_GAIN).clamp(0.0, 1.0));
+            }
+        }
         let mut buf = writer.lock().expect("audio buffer lock");
         let room = max_samples.saturating_sub(buf.len());
         buf.extend_from_slice(&data[..data.len().min(room)]);

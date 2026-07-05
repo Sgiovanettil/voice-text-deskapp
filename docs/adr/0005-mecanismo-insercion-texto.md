@@ -1,6 +1,6 @@
 # ADR-0005 — Mecanismo de inserción de texto en la aplicación activa
 
-- **Estado:** Propuesta (pasa a Aceptada tras el spike de compatibilidad) · **Fecha:** 2026-07-02
+- **Estado:** Aceptada (spike R3 validado en Windows 11 el 2026-07-03; implementada en M2) · **Fecha:** 2026-07-02
 
 ## Contexto
 RF-06: el texto transcrito debe poder insertarse donde está el cursor del usuario. El PRD (v0.2.0) exige evaluar alternativas en la fase de Arquitectura sin asumir implementación. Restricciones: no robar el foco (principio 3), sensación de inmediatez (principio 4), Windows + Linux/X11 garantizados (ADR-0004).

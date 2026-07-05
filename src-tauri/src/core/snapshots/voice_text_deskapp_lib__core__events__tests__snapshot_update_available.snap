@@ -1,0 +1,12 @@
+---
+source: src/core/events.rs
+expression: "DomainEvent::UpdateAvailable\n{\n    version: \"1.1.0\".into(), notes: \"Correcciones y mejoras.\".into(),\n    pub_date: Some(\"2026-07-05T12:00:00Z\".into()),\n}"
+---
+{
+  "event": "updateAvailable",
+  "payload": {
+    "version": "1.1.0",
+    "notes": "Correcciones y mejoras.",
+    "pubDate": "2026-07-05T12:00:00Z"
+  }
+}

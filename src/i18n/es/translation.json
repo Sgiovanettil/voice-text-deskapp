@@ -53,6 +53,24 @@
       "autostart": "Iniciar VoiceText al encender el equipo",
       "startMinimized": "Iniciar minimizado en la bandeja del sistema",
       "saved": "Preferencia de inicio guardada."
+    },
+    "nav": {
+      "general": "General",
+      "recognition": "Reconocimiento",
+      "shortcuts": "Atajos",
+      "about": "Acerca de"
+    },
+    "about": {
+      "version": "Versión"
+    },
+    "update": {
+      "check": "Buscar actualizaciones",
+      "checking": "Buscando…",
+      "upToDate": "Ya tienes la última versión.",
+      "available": "Nueva versión disponible: {{version}}",
+      "install": "Actualizar ahora",
+      "preparing": "Preparando la descarga…",
+      "downloading": "Descargando… {{percent}}%"
     }
   },
   "status": {
@@ -68,7 +86,8 @@
     "listening": "Escuchando…",
     "transcribing": "Transcribiendo…",
     "delivering": "Insertando…",
-    "done": "Listo"
+    "done": "Listo",
+    "idle": "En espera"
   },
   "err": {
     "stt": {
@@ -98,6 +117,10 @@
     },
     "config": {
       "invalid": "La configuración guardada no es válida."
+    },
+    "update": {
+      "network": "No se pudo comprobar si hay actualizaciones. Revisa tu conexión.",
+      "install": "No se pudo instalar la actualización. Inténtalo de nuevo más tarde."
     }
   }
 }
