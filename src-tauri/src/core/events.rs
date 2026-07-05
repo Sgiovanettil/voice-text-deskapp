@@ -85,6 +85,25 @@ pub enum DomainEvent {
     ConfigChanged {
         changed_keys: Vec<String>,
     },
+    // Auto-update (ADR-0010). El updater no es una etapa del ciclo de dictado:
+    // estos eventos los emite el módulo `updater` directamente al canal
+    // `domain-event`, no pasan por el orquestador ni por `is_failure`.
+    #[serde(rename_all = "camelCase")]
+    UpdateAvailable {
+        version: String,
+        notes: String,
+        pub_date: Option<String>,
+    },
+    #[serde(rename_all = "camelCase")]
+    UpdateDownloadProgress {
+        downloaded: u64,
+        content_length: Option<u64>,
+    },
+    #[serde(rename_all = "camelCase")]
+    UpdateFailed {
+        error_key: String,
+        detail: String,
+    },
 }
 
 impl DomainEvent {
@@ -214,6 +233,31 @@ mod tests {
     fn snapshot_config_changed() {
         insta::assert_json_snapshot!(DomainEvent::ConfigChanged {
             changed_keys: vec!["general.hotkey".into()],
+        });
+    }
+
+    #[test]
+    fn snapshot_update_available() {
+        insta::assert_json_snapshot!(DomainEvent::UpdateAvailable {
+            version: "1.1.0".into(),
+            notes: "Correcciones y mejoras.".into(),
+            pub_date: Some("2026-07-05T12:00:00Z".into()),
+        });
+    }
+
+    #[test]
+    fn snapshot_update_download_progress() {
+        insta::assert_json_snapshot!(DomainEvent::UpdateDownloadProgress {
+            downloaded: 1_048_576,
+            content_length: Some(8_388_608),
+        });
+    }
+
+    #[test]
+    fn snapshot_update_failed() {
+        insta::assert_json_snapshot!(DomainEvent::UpdateFailed {
+            error_key: "err.update.network".into(),
+            detail: "connection reset".into(),
         });
     }
 

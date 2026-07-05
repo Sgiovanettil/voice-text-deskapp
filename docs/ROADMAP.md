@@ -79,8 +79,9 @@ menú nativo del tray cambia de idioma recién al reiniciar la app.
    errores en eventos de dominio), así que el foco fue la red de seguridad, no re-plumbing.
 2. **Firma de updater compatible** (RNF-09, ADR-010): `plugins.updater.pubkey` (minisign) en la
    conf para que bundles y `latest.json` sean verificables por el updater oficial desde la primera
-   release. El updater sigue inactivo en runtime (sin endpoints, sin plugin) — su activación es
-   v1.x. Docs en `docs/RELEASING.md`.
+   release. En ese hito el updater seguía inactivo en runtime (sin endpoints, sin plugin); su
+   activación quedó para v1.x — **ya implementada**: `tauri-plugin-updater` habilitado, endpoints
+   al `latest.json` del Release y UI de aviso/instalación (ver `docs/RELEASING.md` y ADR-010).
 3. **Release automatizado → v1.0.0**: bump de versión por `release/1.0.0` → `main` (tag `v1.0.0`)
    que dispara `release.yml`: changelog (git-cliff) + bundles firmados (Windows NSIS/MSI, Linux
    AppImage/deb/rpm) + `latest.json`, publicados como **Release en borrador** para revisión y
