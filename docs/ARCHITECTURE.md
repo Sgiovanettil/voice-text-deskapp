@@ -61,6 +61,9 @@ Los eventos son el contrato público interno. Tipados, serializables (serde), co
 | `TextDeliveryFailed` | delivery | `error_key, fallback_used` | ✔ |
 | `OverlayClosed` | core | `outcome (ok\|error\|cancelled)` | ✔ |
 | `ConfigChanged` | config | `changed_keys` | ✔ |
+| `UpdateAvailable` | updater | `version, notes, pub_date` | ✔ |
+| `UpdateDownloadProgress` | updater | `downloaded, content_length` | ✔ |
+| `UpdateFailed` | updater | `error_key, detail` | ✔ |
 
 Convenciones:
 
@@ -198,8 +201,8 @@ Borde Tauri. Dos superficies:
 - Redacción obligatoria: middleware de logging que filtra patrones de secretos; las keys jamás se interpolan (PRD §15.1).
 - `thiserror` por módulo; conversión única `Error → { code, error_key, retryable }` en `ipc/`.
 
-### 4.11 Updater (preparado, inactivo — ADR-010)
-Desde la primera release: par de claves de firma de updater de Tauri generado y custodiado (secreto de CI), artefactos firmados, `latest.json` publicado como asset. Activar auto-update en v1.x = habilitar `tauri-plugin-updater` + UI de notificación; cero cambios en core. En Linux el updater cubre AppImage; `.deb` se actualiza por gestor de paquetes (documentado).
+### 4.11 Updater (activo — ADR-010)
+`tauri-plugin-updater` habilitado con `endpoints` apuntando al `latest.json` del último Release publicado en GitHub y `pubkey` de verificación. El módulo `src-tauri/src/updater/` concentra la lógica (ADR-002): comando `check_for_update` (chequeo manual, devuelve `Option<UpdateInfo>`) e `install_update` (descarga con progreso + `restart`). Al arrancar, un auto-chequeo emite el evento de dominio `UpdateAvailable`; la descarga emite `UpdateDownloadProgress` y los fallos `UpdateFailed`, todos por el canal `domain-event`. UX: avisar y que el usuario decida (nunca instala en silencio). En Linux el updater cubre AppImage; `.deb` se actualiza por gestor de paquetes (documentado en README).
 
 ---
 

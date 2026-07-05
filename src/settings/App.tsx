@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 
-import type { DomainEvent } from "../shared/events";
+import type { DomainEvent, UpdateInfo } from "../shared/events";
 import type {
   ApiKeyStatus,
   GeneralSettings,
@@ -16,6 +16,7 @@ import "./App.css";
 type Feedback = { kind: "ok" | "error"; text: string } | null;
 type CycleStatus = { kind: "idle" | "busy" | "ok" | "error"; text: string };
 type SectionId = "general" | "recognition" | "shortcuts" | "about";
+type UpdatePhase = "idle" | "checking" | "available" | "downloading" | "error";
 
 // Opciones fijas expuestas en la UI. Los ids de modelo son identificadores del
 // proveedor (no se traducen); los idiomas se etiquetan vía i18n.
@@ -36,6 +37,13 @@ function App() {
   const [cycleStatus, setCycleStatus] = useState<CycleStatus | null>(null);
   const [lastTranscript, setLastTranscript] = useState<string | null>(null);
   const [version, setVersion] = useState<string | null>(null);
+  const [update, setUpdate] = useState<UpdateInfo | null>(null);
+  const [updatePhase, setUpdatePhase] = useState<UpdatePhase>("idle");
+  const [updateProgress, setUpdateProgress] = useState<{
+    downloaded: number;
+    total: number | null;
+  }>({ downloaded: 0, total: null });
+  const [updateError, setUpdateError] = useState<string | null>(null);
 
   useEffect(() => {
     invoke<Settings>("get_settings")
@@ -80,6 +88,22 @@ function App() {
         case "transcriptionFailed":
         case "textDeliveryFailed":
           setCycleStatus({ kind: "error", text: t(ev.payload.errorKey) });
+          break;
+        case "updateAvailable":
+          setUpdate(ev.payload);
+          setUpdatePhase("available");
+          setUpdateError(null);
+          break;
+        case "updateDownloadProgress":
+          setUpdatePhase("downloading");
+          setUpdateProgress({
+            downloaded: ev.payload.downloaded,
+            total: ev.payload.contentLength,
+          });
+          break;
+        case "updateFailed":
+          setUpdatePhase("error");
+          setUpdateError(t(ev.payload.errorKey));
           break;
         default:
           break;
@@ -143,6 +167,44 @@ function App() {
 
   const saveHotkey = () => patchGeneral({ hotkey: hotkeyInput }, "settings.hotkey.saved");
 
+  // Chequeo manual: si hay versión nueva muestra el banner; si no, avisa que la
+  // app está al día. El chequeo automático del arranque llega por `domain-event`.
+  const checkForUpdate = () => {
+    setUpdatePhase("checking");
+    setUpdateError(null);
+    invoke<UpdateInfo | null>("check_for_update")
+      .then((info) => {
+        if (info) {
+          setUpdate(info);
+          setUpdatePhase("available");
+        } else {
+          setUpdatePhase("idle");
+          setFeedback({ kind: "ok", text: t("settings.update.upToDate") });
+        }
+      })
+      .catch((e) => {
+        setUpdatePhase("idle");
+        const err = e as IpcError;
+        setFeedback({
+          kind: "error",
+          text: err?.errorKey ? t(err.errorKey) : t("err.update.network"),
+        });
+      });
+  };
+
+  // Descarga e instala: la app se reinicia al terminar (la promesa no resuelve).
+  // El progreso y los fallos llegan por `domain-event`.
+  const installUpdate = () => {
+    setUpdatePhase("downloading");
+    setUpdateProgress({ downloaded: 0, total: null });
+    setUpdateError(null);
+    invoke("install_update").catch((e) => {
+      setUpdatePhase("error");
+      const err = e as IpcError;
+      setUpdateError(err?.errorKey ? t(err.errorKey) : t("err.update.install"));
+    });
+  };
+
   return (
     <div className="shell">
       <nav className="side">
@@ -162,6 +224,42 @@ function App() {
       </nav>
 
       <main className="panel">
+        {update && (
+          <div className="update-banner" role="status">
+            <strong className="update-title">
+              {t("settings.update.available", { version: update.version })}
+            </strong>
+            {updatePhase === "available" && (
+              <>
+                {update.notes && <p className="hint update-notes">{update.notes}</p>}
+                <button className="update-cta" onClick={installUpdate}>
+                  {t("settings.update.install")}
+                </button>
+              </>
+            )}
+            {updatePhase === "downloading" && (
+              <div className="update-progress">
+                <progress
+                  value={updateProgress.total ? updateProgress.downloaded : undefined}
+                  max={updateProgress.total ?? undefined}
+                />
+                <span className="hint">
+                  {updateProgress.total
+                    ? t("settings.update.downloading", {
+                        percent: Math.round(
+                          (updateProgress.downloaded / updateProgress.total) * 100,
+                        ),
+                      })
+                    : t("settings.update.preparing")}
+                </span>
+              </div>
+            )}
+            {updatePhase === "error" && updateError && (
+              <p className="feedback-error">{updateError}</p>
+            )}
+          </div>
+        )}
+
         {section === "general" && (
           <>
             <h2 className="panel-title">{t("settings.nav.general")}</h2>
@@ -353,6 +451,16 @@ function App() {
                   {t("settings.about.version")} {version}
                 </p>
               )}
+              <div className="row">
+                <button
+                  onClick={checkForUpdate}
+                  disabled={updatePhase === "checking" || updatePhase === "downloading"}
+                >
+                  {updatePhase === "checking"
+                    ? t("settings.update.checking")
+                    : t("settings.update.check")}
+                </button>
+              </div>
             </section>
           </>
         )}

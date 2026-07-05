@@ -13,6 +13,10 @@ Desde la **primera release**:
 
 Activación (v1.x): habilitar el plugin + UI de notificación (detectar, avisar, descargar, instalar). Endpoint: el propio Release de GitHub.
 
+**Activación implementada (v1.x).** `tauri-plugin-updater` habilitado con `endpoints` al `latest.json` del último Release publicado. Lógica en `src-tauri/src/updater/` (comandos `check_for_update` / `install_update`); eventos `UpdateAvailable` / `UpdateDownloadProgress` / `UpdateFailed`. Dos decisiones de operación:
+- **UX: avisar y que el usuario decida.** Auto-chequeo al arranque + botón manual; nunca se instala en silencio.
+- **Publicación manual.** El Release sigue saliendo en **borrador** (`releaseDraft: true`); la actualización llega a los usuarios recién al publicarlo a mano, como control de calidad. El endpoint `releases/latest/download/latest.json` ignora borradores por diseño.
+
 ## Consecuencias
 - (+) Los usuarios de v1.0 podrán actualizarse automáticamente a v1.x sin reinstalar a mano.
 - (+) Cero re-arquitectura al activarlo.
