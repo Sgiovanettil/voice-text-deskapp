@@ -198,6 +198,7 @@ pub fn run() {
             ipc::commands::set_api_key,
             ipc::commands::get_api_key_status,
             ipc::commands::test_provider,
+            ipc::commands::list_input_devices,
             ipc::commands::get_app_state,
             updater::check_for_update,
             updater::install_update,
