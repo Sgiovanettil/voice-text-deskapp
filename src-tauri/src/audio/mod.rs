@@ -10,6 +10,8 @@ use std::thread::JoinHandle;
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 
+pub mod vad;
+
 /// Frecuencia objetivo del pipeline STT (§4.3).
 pub const TARGET_SAMPLE_RATE: u32 = 16_000;
 /// Tope del buffer de captura: 120 s de dictado máximo (ARCHITECTURE §3).
@@ -144,6 +146,17 @@ const LEVEL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(33)
 /// Ganancia para llevar el RMS de voz típico a un rango visual útil.
 const LEVEL_GAIN: f32 = 6.0;
 
+/// Configuración del corte por VAD en modo toggle (ADR-0011). Los callbacks
+/// corren en el hilo de captura: deben limitarse a encolar eventos.
+pub struct VadConfig {
+    pub threshold: f32,
+    pub silence_hangover_ms: u64,
+    /// Silencio sostenido alcanzó el hangover (una vez por grabación).
+    pub on_silence: Box<dyn Fn(u64) + Send + 'static>,
+    /// Cambio de estado hablando/en-silencio (telemetría para el overlay).
+    pub on_speaking: Box<dyn Fn(bool) + Send + 'static>,
+}
+
 impl Recorder {
     /// Abre el dispositivo de entrada por defecto y empieza a capturar.
     /// Devuelve error si no hay dispositivo o el stream no arranca.
@@ -153,10 +166,20 @@ impl Recorder {
 
     /// Como [`Recorder::start`], reportando además el nivel de entrada.
     pub fn start_with_level(on_level: Option<LevelCallback>) -> Result<Self, AudioError> {
+        Self::start_with_options(on_level, None)
+    }
+
+    /// Como [`Recorder::start_with_level`], opcionalmente con corte por VAD
+    /// (modo toggle). Si el VAD no puede inicializarse se degrada a grabar
+    /// sin corte automático (queda el tope de 120 s), nunca falla el inicio.
+    pub fn start_with_options(
+        on_level: Option<LevelCallback>,
+        vad: Option<VadConfig>,
+    ) -> Result<Self, AudioError> {
         let (stop_tx, stop_rx) = mpsc::channel::<()>();
         let (ready_tx, ready_rx) = mpsc::channel::<Result<(), AudioError>>();
 
-        let thread = std::thread::spawn(move || capture_thread(&stop_rx, &ready_tx, on_level));
+        let thread = std::thread::spawn(move || capture_thread(&stop_rx, &ready_tx, on_level, vad));
 
         match ready_rx.recv() {
             Ok(Ok(())) => Ok(Self { stop_tx, thread }),
@@ -181,6 +204,7 @@ fn capture_thread(
     stop_rx: &mpsc::Receiver<()>,
     ready_tx: &mpsc::Sender<Result<(), AudioError>>,
     on_level: Option<LevelCallback>,
+    vad: Option<VadConfig>,
 ) -> Result<AudioData, AudioError> {
     let host = cpal::default_host();
     let Some(device) = host.default_input_device() else {
@@ -199,10 +223,36 @@ fn capture_thread(
     let channels = usize::from(config.channels());
     let max_samples = sample_rate as usize * channels * MAX_CAPTURE_SECONDS as usize;
 
+    // Gate del VAD (solo modo toggle). Si Silero/ONNX no inicializa, se
+    // degrada explícitamente: warn al log y grabación sin corte automático.
+    let mut vad_state = vad.and_then(|cfg| {
+        match vad::VadGate::new(
+            sample_rate,
+            channels,
+            cfg.threshold,
+            cfg.silence_hangover_ms,
+        ) {
+            Ok(gate) => Some((gate, cfg)),
+            Err(e) => {
+                tracing::warn!(error = %e, "VAD no disponible; se graba sin corte por silencio");
+                None
+            }
+        }
+    });
+
     let buffer = Arc::new(Mutex::new(Vec::<f32>::new()));
     let writer = Arc::clone(&buffer);
     let mut last_level = std::time::Instant::now() - LEVEL_INTERVAL;
     let push = move |data: &[f32]| {
+        if let Some((gate, cfg)) = &mut vad_state {
+            let update = gate.feed(data);
+            if let Some(speaking) = update.speaking_changed {
+                (cfg.on_speaking)(speaking);
+            }
+            if let Some(silence_ms) = update.silence_cut_ms {
+                (cfg.on_silence)(silence_ms);
+            }
+        }
         // Nivel RMS del chunk, con throttle: alimenta la onda del overlay.
         if let Some(cb) = &on_level {
             if last_level.elapsed() >= LEVEL_INTERVAL && !data.is_empty() {

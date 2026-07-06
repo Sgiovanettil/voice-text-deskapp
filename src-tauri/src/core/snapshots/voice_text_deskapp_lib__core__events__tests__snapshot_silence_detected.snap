@@ -1,0 +1,10 @@
+---
+source: src/core/events.rs
+expression: "DomainEvent::SilenceDetected { silence_ms: 1_200 }"
+---
+{
+  "event": "silenceDetected",
+  "payload": {
+    "silenceMs": 1200
+  }
+}

@@ -17,10 +17,17 @@
       "testOk": "Provider connection verified."
     },
     "hotkey": {
-      "label": "Dictation shortcut (hold to talk)",
+      "label": "Dictation shortcut",
       "help": "Hold the shortcut to dictate; release it to transcribe.",
+      "helpToggle": "Press the shortcut to start dictating; it stops with another press or on its own when silence is detected.",
       "save": "Save shortcut",
       "saved": "Shortcut saved."
+    },
+    "activation": {
+      "label": "Activation mode",
+      "ptt": "Hold while you talk (push-to-talk)",
+      "toggle": "Press once; stops on its own when silence is detected",
+      "saved": "Activation mode saved."
     },
     "outputMode": {
       "label": "What to do with the text",
@@ -76,6 +83,7 @@
   "status": {
     "label": "Status",
     "idle": "Ready to dictate — hold {{hotkey}}, speak, then release.",
+    "idleToggle": "Ready to dictate — press {{hotkey}} and speak; it stops on its own when silence is detected.",
     "recording": "Recording… (release the shortcut to transcribe)",
     "processing": "Processing audio…",
     "transcribing": "Transcribing…",
@@ -84,6 +92,7 @@
   },
   "overlay": {
     "listening": "Listening…",
+    "silence": "Silence… wrapping up",
     "transcribing": "Transcribing…",
     "delivering": "Inserting…",
     "done": "Done",

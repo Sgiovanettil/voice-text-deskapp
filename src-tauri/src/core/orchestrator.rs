@@ -9,9 +9,9 @@ use std::time::Duration;
 
 use tauri::{AppHandle, Emitter, Manager};
 
-use crate::audio::{AudioData, Recorder};
+use crate::audio::{AudioData, Recorder, VadConfig};
 use crate::core::events::{DomainEvent, OverlayMode, OverlayOutcome};
-use crate::core::state_machine::{Command, CoreState, StateMachine};
+use crate::core::state_machine::{ActivationMode, Command, CoreState, StateMachine};
 use crate::delivery::DeliveryMode;
 use crate::ipc::commands::AppState;
 use crate::speech::{SpeechProvider, TranscribeOptions};
@@ -58,6 +58,20 @@ pub fn spawn(app: AppHandle) -> Sender<DomainEvent> {
                 let _ = app.emit("domain-event", ev);
             }
 
+            // El modo de activación vigente se refresca desde settings antes
+            // de decidir: cambiarlo en la UI aplica al ciclo siguiente (o al
+            // corte del actual) sin reiniciar.
+            if let Some(state) = app.try_state::<AppState>() {
+                let mode = state
+                    .settings
+                    .lock()
+                    .expect("settings lock")
+                    .general
+                    .activation_mode
+                    .clone();
+                sm.set_mode(ActivationMode::from_setting(&mode));
+            }
+
             let prev_state = sm.state();
             let command = match &event {
                 Some(ev) => sm.handle(ev, now),
@@ -101,7 +115,30 @@ pub fn spawn(app: AppHandle) -> Sender<DomainEvent> {
                     let on_level: crate::audio::LevelCallback = Box::new(move |level| {
                         let _ = level_app.emit("audio-level", level);
                     });
-                    match Recorder::start_with_level(Some(on_level)) {
+                    // En modo toggle se arma el corte por VAD (ADR-0011): el
+                    // silencio sostenido entra al core como SilenceDetected y
+                    // el estado hablando/en-silencio va al overlay como
+                    // telemetría (canal "vad-speaking").
+                    let vad = app.try_state::<AppState>().and_then(|state| {
+                        let settings = state.settings.lock().expect("settings lock");
+                        if settings.general.activation_mode != "toggle" {
+                            return None;
+                        }
+                        let silence_tx = self_tx.clone();
+                        let speaking_app = app.clone();
+                        Some(VadConfig {
+                            threshold: settings.vad.threshold,
+                            silence_hangover_ms: settings.vad.silence_hangover_ms,
+                            on_silence: Box::new(move |silence_ms| {
+                                let _ =
+                                    silence_tx.send(DomainEvent::SilenceDetected { silence_ms });
+                            }),
+                            on_speaking: Box::new(move |speaking| {
+                                let _ = speaking_app.emit("vad-speaking", speaking);
+                            }),
+                        })
+                    });
+                    match Recorder::start_with_options(Some(on_level), vad) {
                         Ok(r) => {
                             recorder = Some(r);
                             let _ = self_tx.send(DomainEvent::RecordingStarted {
