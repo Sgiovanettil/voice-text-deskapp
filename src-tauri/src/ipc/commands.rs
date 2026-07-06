@@ -171,6 +171,13 @@ pub async fn test_provider(provider: String, model: String) -> Result<bool, IpcE
     Ok(true)
 }
 
+/// Micrófonos de entrada disponibles, por nombre (ARCHITECTURE §4.3). La UI
+/// los ofrece en un dropdown; el elegido se guarda en `audio.input_device`.
+#[tauri::command]
+pub fn list_input_devices() -> Vec<String> {
+    crate::audio::list_input_devices()
+}
+
 #[tauri::command]
 pub fn get_app_state(state: State<'_, AppState>) -> String {
     let s = match *state.core_state.lock().expect("core state lock") {

@@ -138,7 +138,17 @@ pub fn spawn(app: AppHandle) -> Sender<DomainEvent> {
                             }),
                         })
                     });
-                    match Recorder::start_with_options(Some(on_level), vad) {
+                    // Micrófono elegido (por nombre) desde settings; None =
+                    // default del SO.
+                    let device_name = app.try_state::<AppState>().and_then(|s| {
+                        s.settings
+                            .lock()
+                            .expect("settings lock")
+                            .audio
+                            .input_device
+                            .clone()
+                    });
+                    match Recorder::start_with_options(Some(on_level), vad, device_name) {
                         Ok(r) => {
                             recorder = Some(r);
                             let _ = self_tx.send(DomainEvent::RecordingStarted {

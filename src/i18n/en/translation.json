@@ -53,6 +53,12 @@
         "en": "English"
       }
     },
+    "audio": {
+      "label": "Microphone",
+      "device": "Input device",
+      "default": "System default",
+      "saved": "Microphone saved."
+    },
     "language": {
       "label": "Application language",
       "saved": "Application language changed.",

@@ -14,6 +14,38 @@ pub mod vad;
 
 /// Frecuencia objetivo del pipeline STT (§4.3).
 pub const TARGET_SAMPLE_RATE: u32 = 16_000;
+
+/// Nombres de los dispositivos de entrada disponibles (ARCHITECTURE §4.3), en
+/// el orden que reporta el host. Vacío si no hay micrófonos o el host falla.
+pub fn list_input_devices() -> Vec<String> {
+    cpal::default_host()
+        .input_devices()
+        .map(|devs| {
+            devs.filter_map(|d| d.description().ok().map(|desc| desc.name().to_string()))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Resuelve el dispositivo de entrada por nombre; si el nombre no existe (o es
+/// `None`), cae al default del SO — un micrófono desconectado nunca rompe la
+/// captura (principio de degradación elegante).
+fn select_input_device(host: &cpal::Host, name: Option<&str>) -> Option<cpal::Device> {
+    if let Some(name) = name {
+        if let Ok(mut devices) = host.input_devices() {
+            if let Some(dev) =
+                devices.find(|d| d.description().is_ok_and(|desc| desc.name() == name))
+            {
+                return Some(dev);
+            }
+        }
+        tracing::warn!(
+            device = name,
+            "micrófono elegido no encontrado; usando el default"
+        );
+    }
+    host.default_input_device()
+}
 /// Tope del buffer de captura: 120 s de dictado máximo (ARCHITECTURE §3).
 pub const MAX_CAPTURE_SECONDS: u32 = 120;
 
@@ -166,20 +198,25 @@ impl Recorder {
 
     /// Como [`Recorder::start`], reportando además el nivel de entrada.
     pub fn start_with_level(on_level: Option<LevelCallback>) -> Result<Self, AudioError> {
-        Self::start_with_options(on_level, None)
+        Self::start_with_options(on_level, None, None)
     }
 
     /// Como [`Recorder::start_with_level`], opcionalmente con corte por VAD
-    /// (modo toggle). Si el VAD no puede inicializarse se degrada a grabar
-    /// sin corte automático (queda el tope de 120 s), nunca falla el inicio.
+    /// (modo toggle) y con el micrófono elegido por nombre (`None` = default
+    /// del SO). Si el VAD no puede inicializarse se degrada a grabar sin corte
+    /// automático (queda el tope de 120 s); un nombre de micrófono inexistente
+    /// cae al default — nunca falla el inicio por configuración de captura.
     pub fn start_with_options(
         on_level: Option<LevelCallback>,
         vad: Option<VadConfig>,
+        device_name: Option<String>,
     ) -> Result<Self, AudioError> {
         let (stop_tx, stop_rx) = mpsc::channel::<()>();
         let (ready_tx, ready_rx) = mpsc::channel::<Result<(), AudioError>>();
 
-        let thread = std::thread::spawn(move || capture_thread(&stop_rx, &ready_tx, on_level, vad));
+        let thread = std::thread::spawn(move || {
+            capture_thread(&stop_rx, &ready_tx, on_level, vad, device_name.as_deref())
+        });
 
         match ready_rx.recv() {
             Ok(Ok(())) => Ok(Self { stop_tx, thread }),
@@ -205,9 +242,10 @@ fn capture_thread(
     ready_tx: &mpsc::Sender<Result<(), AudioError>>,
     on_level: Option<LevelCallback>,
     vad: Option<VadConfig>,
+    device_name: Option<&str>,
 ) -> Result<AudioData, AudioError> {
     let host = cpal::default_host();
-    let Some(device) = host.default_input_device() else {
+    let Some(device) = select_input_device(&host, device_name) else {
         let _ = ready_tx.send(Err(AudioError::NoInputDevice));
         return Err(AudioError::NoInputDevice);
     };

@@ -6,6 +6,7 @@ import { listen } from "@tauri-apps/api/event";
 import type { DomainEvent, UpdateInfo } from "../shared/events";
 import type {
   ApiKeyStatus,
+  AudioSettings,
   GeneralSettings,
   IpcError,
   Settings,
@@ -45,6 +46,7 @@ function App() {
   const [cycleStatus, setCycleStatus] = useState<CycleStatus | null>(null);
   const [lastTranscript, setLastTranscript] = useState<string | null>(null);
   const [version, setVersion] = useState<string | null>(null);
+  const [devices, setDevices] = useState<string[]>([]);
   const [update, setUpdate] = useState<UpdateInfo | null>(null);
   const [updatePhase, setUpdatePhase] = useState<UpdatePhase>("idle");
   const [updateProgress, setUpdateProgress] = useState<{
@@ -66,6 +68,9 @@ function App() {
           .catch(() => setKeyStatus(null));
       })
       .catch(() => {});
+    invoke<string[]>("list_input_devices")
+      .then(setDevices)
+      .catch(() => setDevices([]));
     import("@tauri-apps/api/app")
       .then((m) => m.getVersion())
       .then(setVersion)
@@ -148,6 +153,17 @@ function App() {
   const patchStt = (patch: Partial<SttSettings>, okKey: string) => {
     if (!settings) return;
     const updated: Settings = { ...settings, stt: { ...settings.stt, ...patch } };
+    invoke("set_settings", { settings: updated })
+      .then(() => {
+        setSettings(updated);
+        setFeedback({ kind: "ok", text: t(okKey) });
+      })
+      .catch(showError);
+  };
+
+  const patchAudio = (patch: Partial<AudioSettings>, okKey: string) => {
+    if (!settings) return;
+    const updated: Settings = { ...settings, audio: { ...settings.audio, ...patch } };
     invoke("set_settings", { settings: updated })
       .then(() => {
         setSettings(updated);
@@ -452,6 +468,30 @@ function App() {
                   {STT_LANGUAGES.map((lang) => (
                     <option key={lang} value={lang}>
                       {t(`settings.stt.languages.${lang}`)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </section>
+
+            <section className="group">
+              <h3>{t("settings.audio.label")}</h3>
+              <label className="field">
+                {t("settings.audio.device")}
+                <select
+                  value={settings?.audio.input_device ?? ""}
+                  disabled={!settings}
+                  onChange={(e) =>
+                    patchAudio(
+                      { input_device: e.target.value === "" ? null : e.target.value },
+                      "settings.audio.saved",
+                    )
+                  }
+                >
+                  <option value="">{t("settings.audio.default")}</option>
+                  {devices.map((d) => (
+                    <option key={d} value={d}>
+                      {d}
                     </option>
                   ))}
                 </select>

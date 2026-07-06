@@ -53,6 +53,12 @@
         "en": "Inglés"
       }
     },
+    "audio": {
+      "label": "Micrófono",
+      "device": "Dispositivo de entrada",
+      "default": "Predeterminado del sistema",
+      "saved": "Micrófono guardado."
+    },
     "language": {
       "label": "Idioma de la aplicación",
       "saved": "Idioma de la aplicación cambiado.",
