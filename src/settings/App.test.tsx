@@ -24,9 +24,13 @@ vi.mock("@tauri-apps/api/core", () => ({
           },
           stt: { provider: "openai", model: "gpt-4o-mini-transcribe", language: "auto" },
           delivery: { paste_combo_overrides: {}, fallback_typing: false },
+          vad: { threshold: 0.5, silence_hangover_ms: 1200 },
+          audio: { input_device: null },
         });
       case "get_api_key_status":
         return Promise.resolve({ isSet: true, masked: "…1234" });
+      case "list_input_devices":
+        return Promise.resolve(["Micrófono interno", "USB Mic"]);
       default:
         return Promise.reject(new Error(`comando no mockeado: ${cmd}`));
     }
