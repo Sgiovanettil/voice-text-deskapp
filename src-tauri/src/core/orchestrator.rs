@@ -138,11 +138,24 @@ pub fn spawn(app: AppHandle) -> Sender<DomainEvent> {
                             }),
                         })
                     });
-                    match Recorder::start_with_options(Some(on_level), vad) {
+                    // Micrófono elegido (por nombre) desde settings; None =
+                    // default del SO.
+                    let device_name = app.try_state::<AppState>().and_then(|s| {
+                        s.settings
+                            .lock()
+                            .expect("settings lock")
+                            .audio
+                            .input_device
+                            .clone()
+                    });
+                    match Recorder::start_with_options(Some(on_level), vad, device_name) {
                         Ok(r) => {
+                            // Nombre del micrófono realmente abierto (el resuelto):
+                            // observable qué device quedó grabando vs. el pedido.
+                            let device_id = r.device_name().to_string();
                             recorder = Some(r);
                             let _ = self_tx.send(DomainEvent::RecordingStarted {
-                                device_id: "default".into(),
+                                device_id,
                                 sample_rate: crate::audio::TARGET_SAMPLE_RATE,
                             });
                         }

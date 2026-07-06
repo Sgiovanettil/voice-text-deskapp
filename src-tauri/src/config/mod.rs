@@ -19,6 +19,18 @@ pub struct Settings {
     pub delivery: DeliverySettings,
     #[serde(default)]
     pub vad: VadSettings,
+    #[serde(default)]
+    pub audio: AudioSettings,
+}
+
+/// Preferencias de captura (ARCHITECTURE §4.3).
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub struct AudioSettings {
+    /// Micrófono elegido, por **nombre** de dispositivo. `None` = usar el
+    /// default del SO. Si el nombre guardado ya no existe, la captura cae al
+    /// default (nunca falla por un micrófono desconectado).
+    #[serde(default)]
+    pub input_device: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -133,6 +145,7 @@ impl Default for Settings {
             stt: SttSettings::default(),
             delivery: DeliverySettings::default(),
             vad: VadSettings::default(),
+            audio: AudioSettings::default(),
         }
     }
 }
@@ -181,6 +194,7 @@ mod tests {
         assert_eq!(s.general.activation_mode, "ptt");
         assert_eq!(s.vad.threshold, 0.5);
         assert_eq!(s.vad.silence_hangover_ms, 1_200);
+        assert_eq!(s.audio.input_device, None);
     }
 
     #[test]

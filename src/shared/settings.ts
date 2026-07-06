@@ -8,6 +8,12 @@ export interface Settings {
   stt: SttSettings;
   delivery: DeliverySettings;
   vad: VadSettings;
+  audio: AudioSettings;
+}
+
+export interface AudioSettings {
+  // Micrófono por nombre; null = default del SO.
+  input_device: string | null;
 }
 
 export interface GeneralSettings {
