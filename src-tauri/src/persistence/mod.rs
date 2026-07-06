@@ -12,7 +12,14 @@ const SETTINGS_FILE: &str = "settings.json";
 /// Identificador estable del servicio en el almacén de credenciales del SO.
 /// Coincide con el identifier de tauri.conf.json — no cambiar tras release.
 const KEYRING_SERVICE: &str = "dev.sgiovanettil.voicetext";
-const KEYRING_USER_API_KEY: &str = "openai_api_key";
+
+/// Usuario del keyring para la key de un proveedor: `{id}_api_key`. OpenAI
+/// conserva `openai_api_key`, el mismo valor de antes de multi-proveedor, para
+/// no perder la key ya guardada de usuarios existentes (ADR-0012). No cambiar
+/// el formato tras release.
+fn keyring_user(provider_id: &str) -> String {
+    format!("{provider_id}_api_key")
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum PersistenceError {
@@ -75,28 +82,29 @@ pub fn save_settings(config_dir: &Path, settings: &Settings) -> Result<(), Persi
     Ok(())
 }
 
-fn keyring_entry() -> Result<keyring::Entry, PersistenceError> {
-    keyring::Entry::new(KEYRING_SERVICE, KEYRING_USER_API_KEY)
+fn keyring_entry(provider_id: &str) -> Result<keyring::Entry, PersistenceError> {
+    keyring::Entry::new(KEYRING_SERVICE, &keyring_user(provider_id))
         .map_err(|e| PersistenceError::Keyring(e.to_string()))
 }
 
-/// Lee la API key del almacén del SO. `None` si no está seteada.
-pub fn get_api_key() -> Result<Option<String>, PersistenceError> {
-    match keyring_entry()?.get_password() {
+/// Lee la API key de un proveedor del almacén del SO. `None` si no está
+/// seteada.
+pub fn get_api_key(provider_id: &str) -> Result<Option<String>, PersistenceError> {
+    match keyring_entry(provider_id)?.get_password() {
         Ok(key) => Ok(Some(key)),
         Err(keyring::Error::NoEntry) => Ok(None),
         Err(e) => Err(PersistenceError::Keyring(e.to_string())),
     }
 }
 
-pub fn set_api_key(key: &str) -> Result<(), PersistenceError> {
-    keyring_entry()?
+pub fn set_api_key(provider_id: &str, key: &str) -> Result<(), PersistenceError> {
+    keyring_entry(provider_id)?
         .set_password(key)
         .map_err(|e| PersistenceError::Keyring(e.to_string()))
 }
 
-pub fn delete_api_key() -> Result<(), PersistenceError> {
-    match keyring_entry()?.delete_credential() {
+pub fn delete_api_key(provider_id: &str) -> Result<(), PersistenceError> {
+    match keyring_entry(provider_id)?.delete_credential() {
         Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
         Err(e) => Err(PersistenceError::Keyring(e.to_string())),
     }

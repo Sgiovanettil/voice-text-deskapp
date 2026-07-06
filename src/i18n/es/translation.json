@@ -5,8 +5,11 @@
   "settings": {
     "title": "VoiceText",
     "subtitle": "Configuración",
+    "provider": {
+      "label": "Proveedor"
+    },
     "apiKey": {
-      "label": "Clave de API de OpenAI",
+      "label": "Clave de API de {{provider}}",
       "placeholder": "sk-…",
       "save": "Guardar",
       "test": "Probar conexión",
@@ -14,7 +17,11 @@
       "set": "Configurada ({{masked}})",
       "notSet": "Aún no configurada",
       "saved": "Clave guardada de forma segura en el sistema.",
-      "testOk": "Conexión con el proveedor verificada."
+      "testOk": "Conexión con el proveedor verificada.",
+      "hint": {
+        "openai": "Obtén tu clave en platform.openai.com/api-keys.",
+        "groq": "Obtén tu clave en console.groq.com/keys."
+      }
     },
     "hotkey": {
       "label": "Atajo de dictado",
