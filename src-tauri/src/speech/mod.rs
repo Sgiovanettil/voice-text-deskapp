@@ -1,5 +1,5 @@
 //! Abstracción `SpeechProvider` + `ProviderRegistry` (ADR-0003). El core solo
-//! conoce este trait, nunca una implementación concreta. Ver docs/ARCHITECTURE.md §4.4.
+//! conoce este trait, nunca una implementación concreta. Ver docs/2-arquitectura/ARCHITECTURE.md §4.4.
 
 use std::collections::HashMap;
 use std::time::Duration;

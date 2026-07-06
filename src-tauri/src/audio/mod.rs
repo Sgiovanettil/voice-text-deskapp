@@ -1,4 +1,4 @@
-//! Captura de micrófono (cpal) y resampling a 16 kHz mono. Ver docs/ARCHITECTURE.md §4.3.
+//! Captura de micrófono (cpal) y resampling a 16 kHz mono. Ver docs/2-arquitectura/ARCHITECTURE.md §4.3.
 //!
 //! Dos capas: `convert` (funciones puras, testeables sin hardware) y
 //! `Recorder` (cpal sobre el dispositivo por defecto, en su propio hilo — los

@@ -1,4 +1,4 @@
-//! Máquina de estados del ciclo de dictado. Ver docs/ARCHITECTURE.md §3.
+//! Máquina de estados del ciclo de dictado. Ver docs/2-arquitectura/ARCHITECTURE.md §3.
 //!
 //! Pura y sin I/O: recibe eventos de dominio (y ticks de reloj) y devuelve el
 //! comando que el orquestador debe ejecutar contra audio/speech/delivery. El

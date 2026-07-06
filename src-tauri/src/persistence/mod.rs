@@ -1,5 +1,5 @@
 //! Persistencia de `Settings` en archivo de config del SO y secretos en
-//! keyring del SO (ADR-0006). Ver docs/ARCHITECTURE.md §4.7.
+//! keyring del SO (ADR-0006). Ver docs/2-arquitectura/ARCHITECTURE.md §4.7.
 //!
 //! El directorio de config entra como parámetro (lo resuelve el borde Tauri
 //! con `app.path().app_config_dir()`) para mantener esta capa testeable.
