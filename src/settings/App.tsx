@@ -274,9 +274,15 @@ function App() {
   return (
     <div className="shell">
       <nav className="side">
-        <div className="avatar" aria-hidden="true">
-          <span className="avatar-heart" />
-          <span className="avatar-glass" />
+        <div className="brand">
+          <div className="avatar" aria-hidden="true">
+            <span className="avatar-heart" />
+            <span className="avatar-glass" />
+          </div>
+          <div className="brand-text">
+            <span className="brand-name">{t("settings.title")}</span>
+            <span className="brand-sub">{t("settings.subtitle")}</span>
+          </div>
         </div>
         {SECTIONS.map((id) => (
           <button
