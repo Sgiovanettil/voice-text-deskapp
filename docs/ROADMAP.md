@@ -108,6 +108,7 @@ quedó construida y firmada, a la espera de publicar el borrador.
 | Diccionario personal/reemplazos ([ADR-0013](adr/0013-diccionario-personal.md)) | ⏳ Pendiente |
 | Inglés en la UI | ⏳ Pendiente |
 | Ampliación de la matriz Wayland (compositores wlroots) | ⏳ Pendiente |
+| Descubrimiento dinámico de modelos (`GET /v1/models` por proveedor) | ⏳ Pendiente (post-v1.2.0) |
 
 #### Toggle + VAD — detalle de lo entregado (2026-07-05)
 
@@ -125,6 +126,8 @@ quedó construida y firmada, a la espera de publicar el borrador.
 ### v2.x
 
 Streaming STT, Event Bus formal con suscriptores dinámicos, capacidad **LLM** (post-procesado del dictado: limpieza, formato, comandos de voz "en modo prompt" — spec anticipada en [ADR-0014](adr/0014-modos-dictado-postprocesado-llm.md)).
+
+**Descubrimiento dinámico de modelos.** Hoy la lista de modelos por proveedor es estática (curada en `MODELS_BY_PROVIDER` del frontend y los `DEFAULT_MODEL` de cada `providers/*`). Ambos proveedores (OpenAI y Groq, compatible) exponen `GET /v1/models`, que ya se toca parcialmente en `check_auth`. La idea: un comando `list_models(proveedor, capacidad)` que traiga los modelos del endpoint, los **filtre por capacidad** (el endpoint devuelve todos los modelos mezclados, sin etiqueta de capacidad fiable → heurística por nombre o allow-list por capacidad), los **cachee** y **caiga a la lista estática curada** sin red/sin key. Encaja con la arquitectura por capacidades (ADR-0003) y se paga solo al llegar la capacidad **LLM** (mismo endpoint lista los modelos de chat). Priorizado para hacerse junto con, o justo antes de, la capacidad LLM.
 
 ### v3.x+
 
