@@ -97,6 +97,28 @@ quedó construida y firmada, a la espera de publicar el borrador.
 
 ## Post-MVP (orden tentativo)
 
-1. **v1.x:** activación del auto-updater (Windows + AppImage), toggle + VAD ([ADR-0011](adr/0011-activacion-toggle-vad.md)), selección de micrófono (spec en ARCHITECTURE §4.3), segundo proveedor STT: Groq ([ADR-0012](adr/0012-segundo-proveedor-stt-groq.md), valida ADR-003), diccionario personal/reemplazos ([ADR-0013](adr/0013-diccionario-personal.md)), inglés en la UI, ampliación de la matriz Wayland (compositores wlroots).
-2. **v2.x:** streaming STT, Event Bus formal con suscriptores dinámicos, capacidad **LLM** (post-procesado del dictado: limpieza, formato, comandos de voz "en modo prompt" — spec anticipada en [ADR-0014](adr/0014-modos-dictado-postprocesado-llm.md)).
-3. **v3.x+:** TTS, Vision (capturas), Embeddings/RAG, Realtime, plugins; macOS.
+### v1.x — en curso
+
+| Item | Estado |
+| --- | --- |
+| Activación del auto-updater (Windows + AppImage) | ✅ **Entregado** en v1.1.0 (aviso + confirmación del usuario) |
+| Toggle + VAD ([ADR-0011](adr/0011-activacion-toggle-vad.md)) | ✅ **Entregado y validado** end-to-end en Windows 11 (2026-07-05) — modo toggle con corte por silencio (Silero VAD) mergeado a `develop` (#56) |
+| Selección de micrófono (spec en ARCHITECTURE §4.3) | ⏳ Pendiente |
+| Segundo proveedor STT: Groq ([ADR-0012](adr/0012-segundo-proveedor-stt-groq.md), valida ADR-003) | ⏳ Pendiente |
+| Diccionario personal/reemplazos ([ADR-0013](adr/0013-diccionario-personal.md)) | ⏳ Pendiente |
+| Inglés en la UI | ⏳ Pendiente |
+| Ampliación de la matriz Wayland (compositores wlroots) | ⏳ Pendiente |
+
+#### Toggle + VAD — detalle de lo entregado (2026-07-05)
+
+1. Nuevo setting `general.activation_mode` (`ptt` default / `toggle`), mismo hotkey para ambos modos. En toggle: una pulsación inicia; corta la segunda pulsación, el silencio sostenido del VAD o el tope de 120 s.
+2. Motor VAD: crate `voice_activity_detector` (Silero sobre ONNX Runtime), chunks de 512 samples @ 16 kHz, con `VadGate` en el hilo de captura (resampler lineal propio para el VAD; el audio transcrito sigue por rubato). El corte solo se arma tras detectar habla — una pausa inicial no cierra el dictado. Sección `vad` en settings: `threshold` (0.5) y `silence_hangover_ms` (1200).
+3. Sin cambios al contrato de eventos salvo el evento aditivo `SilenceDetected` (ADR-0009: solo agregar); telemetría `vad-speaking` para que el overlay muestre "En silencio… cerrando". UI: selector de modo en Atajos, textos según el modo, i18n es/en. Degradación elegante: si ONNX no inicializa, se graba sin corte automático.
+
+### v2.x
+
+Streaming STT, Event Bus formal con suscriptores dinámicos, capacidad **LLM** (post-procesado del dictado: limpieza, formato, comandos de voz "en modo prompt" — spec anticipada en [ADR-0014](adr/0014-modos-dictado-postprocesado-llm.md)).
+
+### v3.x+
+
+TTS, Vision (capturas), Embeddings/RAG, Realtime, plugins; macOS.
