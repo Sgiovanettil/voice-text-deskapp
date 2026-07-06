@@ -167,6 +167,10 @@ pub mod convert {
 pub struct Recorder {
     stop_tx: mpsc::Sender<()>,
     thread: JoinHandle<Result<AudioData, AudioError>>,
+    /// Nombre del micrófono que el host abrió de verdad (el resuelto, no el
+    /// pedido): alimenta `RecordingStarted.device_id` para que sea observable
+    /// qué dispositivo quedó grabando.
+    device_name: String,
 }
 
 /// Callback de nivel de entrada (0..1, RMS normalizado), invocado desde el
@@ -212,20 +216,30 @@ impl Recorder {
         device_name: Option<String>,
     ) -> Result<Self, AudioError> {
         let (stop_tx, stop_rx) = mpsc::channel::<()>();
-        let (ready_tx, ready_rx) = mpsc::channel::<Result<(), AudioError>>();
+        // El Ok trae el nombre del micrófono que el host abrió de verdad (§4.3).
+        let (ready_tx, ready_rx) = mpsc::channel::<Result<String, AudioError>>();
 
         let thread = std::thread::spawn(move || {
             capture_thread(&stop_rx, &ready_tx, on_level, vad, device_name.as_deref())
         });
 
         match ready_rx.recv() {
-            Ok(Ok(())) => Ok(Self { stop_tx, thread }),
+            Ok(Ok(device_name)) => Ok(Self {
+                stop_tx,
+                thread,
+                device_name,
+            }),
             Ok(Err(e)) => {
                 let _ = thread.join();
                 Err(e)
             }
             Err(_) => Err(AudioError::Stream("capture thread died".into())),
         }
+    }
+
+    /// Nombre del micrófono realmente abierto por el host (§4.3).
+    pub fn device_name(&self) -> &str {
+        &self.device_name
     }
 
     /// Detiene la captura y entrega el audio procesado.
@@ -239,7 +253,7 @@ impl Recorder {
 
 fn capture_thread(
     stop_rx: &mpsc::Receiver<()>,
-    ready_tx: &mpsc::Sender<Result<(), AudioError>>,
+    ready_tx: &mpsc::Sender<Result<String, AudioError>>,
     on_level: Option<LevelCallback>,
     vad: Option<VadConfig>,
     device_name: Option<&str>,
@@ -249,6 +263,17 @@ fn capture_thread(
         let _ = ready_tx.send(Err(AudioError::NoInputDevice));
         return Err(AudioError::NoInputDevice);
     };
+    // Nombre del device efectivamente abierto (el resuelto): a `RecordingStarted`
+    // y al log, para poder confirmar qué micrófono quedó grabando vs. el pedido.
+    let opened_name = device
+        .description()
+        .map(|d| d.name().to_string())
+        .unwrap_or_else(|_| "desconocido".to_string());
+    tracing::info!(
+        requested = device_name.unwrap_or("(default)"),
+        opened = %opened_name,
+        "micrófono de captura resuelto"
+    );
     let config = match device.default_input_config() {
         Ok(c) => c,
         Err(e) => {
@@ -318,7 +343,7 @@ fn capture_thread(
         let _ = ready_tx.send(Err(AudioError::Stream(msg.clone())));
         return Err(AudioError::Stream(msg));
     }
-    let _ = ready_tx.send(Ok(()));
+    let _ = ready_tx.send(Ok(opened_name));
 
     // Bloquea hasta que Recorder::stop() envíe la señal (o se caiga el otro lado).
     let _ = stop_rx.recv();
