@@ -35,6 +35,11 @@ const STT_LANGUAGES = ["auto", "es", "en"];
 // Pausas de silencio (ms) que cierran el dictado en modo toggle; espejo del
 // default en config::default_silence_hangover_ms (2000).
 const SILENCE_PAUSES_MS = [1200, 2000, 3000] as const;
+// Umbral de probabilidad de voz del VAD (Silero): más bajo = más sensible,
+// la voz suave sigue contando como habla. Espejo de
+// config::default_vad_threshold (0.5). Las etiquetas i18n van por 1000
+// (300/500/700) porque los puntos no sirven en claves de i18next.
+const VAD_THRESHOLDS = [0.3, 0.5, 0.7] as const;
 const UI_LANGUAGES = ["es", "en"];
 const SECTIONS: SectionId[] = ["general", "recognition", "shortcuts", "about"];
 
@@ -553,7 +558,7 @@ function App() {
             </section>
             {settings?.general.activation_mode === "toggle" && (
               <section className="group">
-                <h3>{t("settings.pause.label")}</h3>
+                <h3>{t("settings.autocut.label")}</h3>
                 <p className="hint">{t("settings.pause.hint")}</p>
                 <label className="field">
                   {t("settings.pause.label")}
@@ -576,6 +581,27 @@ function App() {
                         {t("settings.pause.custom", {
                           seconds: settings.vad.silence_hangover_ms / 1000,
                         })}
+                      </option>
+                    )}
+                  </select>
+                </label>
+                <p className="hint">{t("settings.sensitivity.hint")}</p>
+                <label className="field">
+                  {t("settings.sensitivity.label")}
+                  <select
+                    value={String(settings.vad.threshold)}
+                    onChange={(e) =>
+                      patchVad({ threshold: Number(e.target.value) }, "settings.sensitivity.saved")
+                    }
+                  >
+                    {VAD_THRESHOLDS.map((th) => (
+                      <option key={th} value={String(th)}>
+                        {t(`settings.sensitivity.options.${Math.round(th * 1000)}`)}
+                      </option>
+                    ))}
+                    {!VAD_THRESHOLDS.some((th) => th === settings.vad.threshold) && (
+                      <option value={String(settings.vad.threshold)}>
+                        {t("settings.sensitivity.custom", { value: settings.vad.threshold })}
                       </option>
                     )}
                   </select>

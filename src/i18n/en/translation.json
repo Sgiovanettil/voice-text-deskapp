@@ -36,6 +36,20 @@
       "toggle": "Press once; stops on its own when silence is detected",
       "saved": "Activation mode saved."
     },
+    "autocut": {
+      "label": "Silence auto-stop"
+    },
+    "sensitivity": {
+      "label": "Voice sensitivity",
+      "hint": "If dictation cuts off when you lower your voice, raise the sensitivity: soft speech will still count as talking.",
+      "saved": "Sensitivity saved.",
+      "custom": "Custom ({{value}})",
+      "options": {
+        "300": "High (picks up soft voice)",
+        "500": "Medium",
+        "700": "Low (firm voice only)"
+      }
+    },
     "pause": {
       "label": "Pause before stopping",
       "hint": "How much continuous silence to wait before the dictation stops on its own.",

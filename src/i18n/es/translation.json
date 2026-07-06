@@ -36,6 +36,20 @@
       "toggle": "Presionar una vez; se corta solo al detectar silencio",
       "saved": "Modo de activación guardado."
     },
+    "autocut": {
+      "label": "Corte por silencio"
+    },
+    "sensitivity": {
+      "label": "Sensibilidad de voz",
+      "hint": "Si al bajar la voz se corta el dictado, sube la sensibilidad: la voz suave seguirá contando como habla.",
+      "saved": "Sensibilidad guardada.",
+      "custom": "Personalizada ({{value}})",
+      "options": {
+        "300": "Alta (capta voz baja)",
+        "500": "Media",
+        "700": "Baja (solo voz firme)"
+      }
+    },
     "pause": {
       "label": "Pausa antes de cortar",
       "hint": "Cuánto silencio seguido espera antes de cerrar el dictado por sí solo.",
