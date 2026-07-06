@@ -7,6 +7,7 @@ export interface Settings {
   general: GeneralSettings;
   stt: SttSettings;
   delivery: DeliverySettings;
+  vad: VadSettings;
 }
 
 export interface GeneralSettings {
@@ -15,7 +16,13 @@ export interface GeneralSettings {
   autostart: boolean;
   start_minimized: boolean;
   output_mode: string;
+  activation_mode: string;
   overlay_position: OverlayPos | null;
+}
+
+export interface VadSettings {
+  threshold: number;
+  silence_hangover_ms: number;
 }
 
 export interface OverlayPos {

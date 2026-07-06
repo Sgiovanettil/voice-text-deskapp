@@ -11,6 +11,7 @@ export type OverlayOutcome = "ok" | "error" | "cancelled";
 export type DomainEvent =
   | { event: "hotkeyPressed"; payload: { timestamp: number } }
   | { event: "hotkeyReleased"; payload: { timestamp: number } }
+  | { event: "silenceDetected"; payload: { silenceMs: number } }
   | { event: "overlayOpened"; payload: { mode: OverlayMode } }
   | { event: "recordingStarted"; payload: { deviceId: string; sampleRate: number } }
   | { event: "recordingStopped"; payload: { durationMs: number; samples: number } }
