@@ -104,7 +104,7 @@ quedó construida y firmada, a la espera de publicar el borrador.
 | Activación del auto-updater (Windows + AppImage) | ✅ **Entregado** en v1.1.0 (aviso + confirmación del usuario) |
 | Toggle + VAD ([ADR-0011](adr/0011-activacion-toggle-vad.md)) | ✅ **Entregado y validado** end-to-end en Windows 11 (2026-07-05) — modo toggle con corte por silencio (Silero VAD) mergeado a `develop` (#56) |
 | Selección de micrófono (spec en ARCHITECTURE §4.3) | ⏳ Pendiente |
-| Segundo proveedor STT: Groq ([ADR-0012](adr/0012-segundo-proveedor-stt-groq.md), valida ADR-003) | ⏳ Pendiente |
+| Segundo proveedor STT: Groq ([ADR-0012](adr/0012-segundo-proveedor-stt-groq.md), valida ADR-003) | ✅ **Entregado y validado** end-to-end en Windows 11 (2026-07-05) — Groq (`whisper-large-v3-turbo`) mergeado a `develop` (#58); cliente OpenAI-compatible factorizado, key por proveedor, selector + test por proveedor y refresco del widget |
 | Diccionario personal/reemplazos ([ADR-0013](adr/0013-diccionario-personal.md)) | ⏳ Pendiente |
 | Inglés en la UI | ⏳ Pendiente |
 | Ampliación de la matriz Wayland (compositores wlroots) | ⏳ Pendiente |
@@ -114,6 +114,13 @@ quedó construida y firmada, a la espera de publicar el borrador.
 1. Nuevo setting `general.activation_mode` (`ptt` default / `toggle`), mismo hotkey para ambos modos. En toggle: una pulsación inicia; corta la segunda pulsación, el silencio sostenido del VAD o el tope de 120 s.
 2. Motor VAD: crate `voice_activity_detector` (Silero sobre ONNX Runtime), chunks de 512 samples @ 16 kHz, con `VadGate` en el hilo de captura (resampler lineal propio para el VAD; el audio transcrito sigue por rubato). El corte solo se arma tras detectar habla — una pausa inicial no cierra el dictado. Sección `vad` en settings: `threshold` (0.5) y `silence_hangover_ms` (1200).
 3. Sin cambios al contrato de eventos salvo el evento aditivo `SilenceDetected` (ADR-0009: solo agregar); telemetría `vad-speaking` para que el overlay muestre "En silencio… cerrando". UI: selector de modo en Atajos, textos según el modo, i18n es/en. Degradación elegante: si ONNX no inicializa, se graba sin corte automático.
+
+#### Segundo proveedor STT: Groq — detalle de lo entregado (2026-07-05)
+
+1. Cliente HTTP factorizado en `OpenAiCompatibleProvider` (multipart, timeout, reintento y mapeo de errores compartidos); OpenAI y Groq solo aportan id, base URL y modelo por defecto. `providers::resolve(id, key)` elige el proveedor por `stt.provider` — el orquestador ya no construye OpenAI a mano (antes puenteaba el registry).
+2. API key por proveedor en el keyring (`openai_api_key`/`groq_api_key`); OpenAI conserva su usuario para no perder la key ya guardada. `check_auth` pasó a ser método del trait `SpeechProvider` (aditivo) para que `test_provider` resuelva por id.
+3. UI: selector de proveedor con key, estado, test y modelos por proveedor; pistas de onboarding; el overlay refresca proveedor/modelo ante `ConfigChanged`. i18n es/en. Validado con key real de Groq en Windows 11.
+4. Diferido (anotado en ADR-0012): migración de `providers/*` a crates propios, para acotar el PR; ortogonal a validar el trait.
 
 ### v2.x
 

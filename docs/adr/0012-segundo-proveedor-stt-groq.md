@@ -1,6 +1,6 @@
 # ADR-0012 — Segundo proveedor STT: Groq (v1.x)
 
-- **Estado:** Aceptada (diseño; implementación en v1.x) · **Fecha:** 2026-07-05
+- **Estado:** Implementada (v1.x; mergeada a `develop` en #58, validada en Windows 11 el 2026-07-05 con key real de Groq) · **Fecha:** 2026-07-05
 
 ## Contexto
 
