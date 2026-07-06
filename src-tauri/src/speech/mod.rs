@@ -48,6 +48,9 @@ pub trait SpeechProvider: Send + Sync {
         audio: AudioData,
         opts: TranscribeOptions,
     ) -> Result<Transcript, SpeechError>;
+    /// Valida credenciales sin transcribir (lo usa el comando `test_provider`).
+    /// Un proveedor sin auth remota (p. ej. STT local futuro) devuelve `Ok`.
+    async fn check_auth(&self, model: &str) -> Result<(), SpeechError>;
 }
 
 /// Mapa `id → proveedor`; resuelve según `config.stt.provider` (RNF-08).

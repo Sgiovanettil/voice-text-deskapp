@@ -6,6 +6,7 @@ import { listen } from "@tauri-apps/api/event";
 import type { DomainEvent, UpdateInfo } from "../shared/events";
 import type {
   ApiKeyStatus,
+  AudioSettings,
   GeneralSettings,
   IpcError,
   Settings,
@@ -18,9 +19,17 @@ type CycleStatus = { kind: "idle" | "busy" | "ok" | "error"; text: string };
 type SectionId = "general" | "recognition" | "shortcuts" | "about";
 type UpdatePhase = "idle" | "checking" | "available" | "downloading" | "error";
 
-// Opciones fijas expuestas en la UI. Los ids de modelo son identificadores del
-// proveedor (no se traducen); los idiomas se etiquetan vía i18n.
-const STT_MODELS = ["gpt-4o-mini-transcribe", "gpt-4o-transcribe", "whisper-1"];
+// Opciones fijas expuestas en la UI. Los ids de proveedor/modelo son
+// identificadores (no se traducen); los idiomas se etiquetan vía i18n.
+const PROVIDERS = ["openai", "groq"] as const;
+// Nombres de marca de cada proveedor (no se traducen).
+const PROVIDER_NAMES: Record<string, string> = { openai: "OpenAI", groq: "Groq" };
+// Modelos por proveedor; el primero es el default al elegir el proveedor
+// (espejo de providers::default_model en el backend).
+const MODELS_BY_PROVIDER: Record<string, string[]> = {
+  openai: ["gpt-4o-mini-transcribe", "gpt-4o-transcribe", "whisper-1"],
+  groq: ["whisper-large-v3-turbo", "whisper-large-v3"],
+};
 const STT_LANGUAGES = ["auto", "es", "en"];
 const UI_LANGUAGES = ["es", "en"];
 const SECTIONS: SectionId[] = ["general", "recognition", "shortcuts", "about"];
@@ -37,6 +46,7 @@ function App() {
   const [cycleStatus, setCycleStatus] = useState<CycleStatus | null>(null);
   const [lastTranscript, setLastTranscript] = useState<string | null>(null);
   const [version, setVersion] = useState<string | null>(null);
+  const [devices, setDevices] = useState<string[]>([]);
   const [update, setUpdate] = useState<UpdateInfo | null>(null);
   const [updatePhase, setUpdatePhase] = useState<UpdatePhase>("idle");
   const [updateProgress, setUpdateProgress] = useState<{
@@ -52,11 +62,15 @@ function App() {
         setHotkeyInput(s.general.hotkey);
         // La UI arranca en el idioma persistido (i18n se inicializa en es).
         void i18n.changeLanguage(s.general.ui_language);
+        // El estado de la key es por proveedor: se pide para el elegido.
+        invoke<ApiKeyStatus>("get_api_key_status", { provider: s.stt.provider })
+          .then(setKeyStatus)
+          .catch(() => setKeyStatus(null));
       })
       .catch(() => {});
-    invoke<ApiKeyStatus>("get_api_key_status")
-      .then(setKeyStatus)
-      .catch(() => {});
+    invoke<string[]>("list_input_devices")
+      .then(setDevices)
+      .catch(() => setDevices([]));
     import("@tauri-apps/api/app")
       .then((m) => m.getVersion())
       .then(setVersion)
@@ -147,8 +161,29 @@ function App() {
       .catch(showError);
   };
 
+  const patchAudio = (patch: Partial<AudioSettings>, okKey: string) => {
+    if (!settings) return;
+    const updated: Settings = { ...settings, audio: { ...settings.audio, ...patch } };
+    invoke("set_settings", { settings: updated })
+      .then(() => {
+        setSettings(updated);
+        setFeedback({ kind: "ok", text: t(okKey) });
+      })
+      .catch(showError);
+  };
+
+  // Proveedor STT elegido y su nombre de marca para las cadenas de la UI.
+  const provider = settings?.stt.provider ?? "openai";
+  const providerName = PROVIDER_NAMES[provider] ?? provider;
+
+  const refreshKeyStatus = (forProvider: string) => {
+    invoke<ApiKeyStatus>("get_api_key_status", { provider: forProvider })
+      .then(setKeyStatus)
+      .catch(() => setKeyStatus(null));
+  };
+
   const saveApiKey = () => {
-    invoke<ApiKeyStatus>("set_api_key", { key: apiKeyInput })
+    invoke<ApiKeyStatus>("set_api_key", { provider, key: apiKeyInput })
       .then((status) => {
         setKeyStatus(status);
         setApiKeyInput("");
@@ -157,9 +192,25 @@ function App() {
       .catch(showError);
   };
 
+  // Cambia de proveedor: resetea el modelo al default del nuevo proveedor y
+  // refresca el estado de la key (cada proveedor tiene la suya).
+  const changeProvider = (next: string) => {
+    if (!settings) return;
+    const model = MODELS_BY_PROVIDER[next]?.[0] ?? settings.stt.model;
+    const updated: Settings = { ...settings, stt: { ...settings.stt, provider: next, model } };
+    invoke("set_settings", { settings: updated })
+      .then(() => {
+        setSettings(updated);
+        setApiKeyInput("");
+        refreshKeyStatus(next);
+        setFeedback({ kind: "ok", text: t("settings.stt.saved") });
+      })
+      .catch(showError);
+  };
+
   const testProvider = () => {
     setTesting(true);
-    invoke<boolean>("test_provider")
+    invoke<boolean>("test_provider", { provider, model: settings?.stt.model ?? "" })
       .then(() => setFeedback({ kind: "ok", text: t("settings.apiKey.testOk") }))
       .catch(showError)
       .finally(() => setTesting(false));
@@ -349,19 +400,38 @@ function App() {
             <h2 className="panel-title">{t("settings.stt.label")}</h2>
 
             <section className="group">
-              <h3>{t("settings.apiKey.label")}</h3>
+              <h3>{t("settings.provider.label")}</h3>
+              <label className="field">
+                {t("settings.provider.label")}
+                <select
+                  value={provider}
+                  disabled={!settings}
+                  onChange={(e) => changeProvider(e.target.value)}
+                >
+                  {PROVIDERS.map((id) => (
+                    <option key={id} value={id}>
+                      {PROVIDER_NAMES[id]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </section>
+
+            <section className="group">
+              <h3>{t("settings.apiKey.label", { provider: providerName })}</h3>
               <p className="hint">
                 {keyStatus?.isSet
                   ? t("settings.apiKey.set", { masked: keyStatus.masked })
                   : t("settings.apiKey.notSet")}
               </p>
+              <p className="hint">{t(`settings.apiKey.hint.${provider}`)}</p>
               <div className="row">
                 <input
                   type="password"
                   value={apiKeyInput}
                   onChange={(e) => setApiKeyInput(e.target.value)}
                   placeholder={t("settings.apiKey.placeholder")}
-                  aria-label={t("settings.apiKey.label")}
+                  aria-label={t("settings.apiKey.label", { provider: providerName })}
                 />
                 <button onClick={saveApiKey} disabled={apiKeyInput.trim() === ""}>
                   {t("settings.apiKey.save")}
@@ -381,7 +451,7 @@ function App() {
                   disabled={!settings}
                   onChange={(e) => patchStt({ model: e.target.value }, "settings.stt.saved")}
                 >
-                  {STT_MODELS.map((m) => (
+                  {(MODELS_BY_PROVIDER[provider] ?? []).map((m) => (
                     <option key={m} value={m}>
                       {m}
                     </option>
@@ -403,6 +473,30 @@ function App() {
                 </select>
               </label>
             </section>
+
+            <section className="group">
+              <h3>{t("settings.audio.label")}</h3>
+              <label className="field">
+                {t("settings.audio.device")}
+                <select
+                  value={settings?.audio.input_device ?? ""}
+                  disabled={!settings}
+                  onChange={(e) =>
+                    patchAudio(
+                      { input_device: e.target.value === "" ? null : e.target.value },
+                      "settings.audio.saved",
+                    )
+                  }
+                >
+                  <option value="">{t("settings.audio.default")}</option>
+                  {devices.map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </section>
           </>
         )}
 
@@ -410,8 +504,39 @@ function App() {
           <>
             <h2 className="panel-title">{t("settings.nav.shortcuts")}</h2>
             <section className="group">
+              <h3>{t("settings.activation.label")}</h3>
+              <label className="check-row">
+                <input
+                  type="radio"
+                  name="activation-mode"
+                  checked={settings?.general.activation_mode !== "toggle"}
+                  disabled={!settings}
+                  onChange={() =>
+                    patchGeneral({ activation_mode: "ptt" }, "settings.activation.saved")
+                  }
+                />
+                {t("settings.activation.ptt")}
+              </label>
+              <label className="check-row">
+                <input
+                  type="radio"
+                  name="activation-mode"
+                  checked={settings?.general.activation_mode === "toggle"}
+                  disabled={!settings}
+                  onChange={() =>
+                    patchGeneral({ activation_mode: "toggle" }, "settings.activation.saved")
+                  }
+                />
+                {t("settings.activation.toggle")}
+              </label>
+            </section>
+            <section className="group">
               <h3>{t("settings.hotkey.label")}</h3>
-              <p className="hint">{t("settings.hotkey.help")}</p>
+              <p className="hint">
+                {settings?.general.activation_mode === "toggle"
+                  ? t("settings.hotkey.helpToggle")
+                  : t("settings.hotkey.help")}
+              </p>
               <div className="row">
                 <input
                   type="text"
@@ -434,7 +559,13 @@ function App() {
             <section className="group">
               <h3>{t("status.label")}</h3>
               <p role="status" className={`status status-${cycleStatus?.kind ?? "idle"}`}>
-                {cycleStatus?.text ?? t("status.idle", { hotkey: settings?.general.hotkey ?? "…" })}
+                {cycleStatus?.text ??
+                  t(
+                    settings?.general.activation_mode === "toggle"
+                      ? "status.idleToggle"
+                      : "status.idle",
+                    { hotkey: settings?.general.hotkey ?? "…" },
+                  )}
               </p>
               {lastTranscript !== null && (
                 <>

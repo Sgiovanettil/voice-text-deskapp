@@ -17,6 +17,20 @@ pub struct Settings {
     pub stt: SttSettings,
     #[serde(default)]
     pub delivery: DeliverySettings,
+    #[serde(default)]
+    pub vad: VadSettings,
+    #[serde(default)]
+    pub audio: AudioSettings,
+}
+
+/// Preferencias de captura (ARCHITECTURE §4.3).
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub struct AudioSettings {
+    /// Micrófono elegido, por **nombre** de dispositivo. `None` = usar el
+    /// default del SO. Si el nombre guardado ya no existe, la captura cae al
+    /// default (nunca falla por un micrófono desconectado).
+    #[serde(default)]
+    pub input_device: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -31,9 +45,25 @@ pub struct GeneralSettings {
     pub start_minimized: bool,
     #[serde(default = "default_output_mode")]
     pub output_mode: String,
+    /// Modo de activación (ADR-0011): `"ptt"` graba mientras el hotkey está
+    /// presionado; `"toggle"` inicia con una pulsación y corta con otra, por
+    /// VAD o al tope de 120 s.
+    #[serde(default = "default_activation_mode")]
+    pub activation_mode: String,
     /// Posición del overlay en píxeles físicos; `None` = abajo-centro.
     #[serde(default)]
     pub overlay_position: Option<OverlayPos>,
+}
+
+/// Parámetros del corte por detección de voz en modo toggle (ADR-0011).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct VadSettings {
+    /// Probabilidad de voz mínima para considerar un chunk como habla.
+    #[serde(default = "default_vad_threshold")]
+    pub threshold: f32,
+    /// Silencio continuo (ms) que dispara el corte automático.
+    #[serde(default = "default_silence_hangover_ms")]
+    pub silence_hangover_ms: u64,
 }
 
 /// Posición persistida del overlay (píxeles físicos del monitor).
@@ -88,6 +118,24 @@ fn default_model() -> String {
 fn default_stt_language() -> String {
     "auto".into()
 }
+fn default_activation_mode() -> String {
+    "ptt".into()
+}
+fn default_vad_threshold() -> f32 {
+    0.5
+}
+fn default_silence_hangover_ms() -> u64 {
+    1_200
+}
+
+impl Default for VadSettings {
+    fn default() -> Self {
+        Self {
+            threshold: default_vad_threshold(),
+            silence_hangover_ms: default_silence_hangover_ms(),
+        }
+    }
+}
 
 impl Default for Settings {
     fn default() -> Self {
@@ -96,6 +144,8 @@ impl Default for Settings {
             general: GeneralSettings::default(),
             stt: SttSettings::default(),
             delivery: DeliverySettings::default(),
+            vad: VadSettings::default(),
+            audio: AudioSettings::default(),
         }
     }
 }
@@ -108,6 +158,7 @@ impl Default for GeneralSettings {
             autostart: false,
             start_minimized: true,
             output_mode: default_output_mode(),
+            activation_mode: default_activation_mode(),
             overlay_position: None,
         }
     }
@@ -140,6 +191,10 @@ mod tests {
         assert_eq!(s.stt.model, "gpt-4o-mini-transcribe");
         assert_eq!(s.stt.language, "auto");
         assert!(!s.delivery.fallback_typing);
+        assert_eq!(s.general.activation_mode, "ptt");
+        assert_eq!(s.vad.threshold, 0.5);
+        assert_eq!(s.vad.silence_hangover_ms, 1_200);
+        assert_eq!(s.audio.input_device, None);
     }
 
     #[test]

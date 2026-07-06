@@ -1,6 +1,6 @@
 [package]
 name = "voice-text-deskapp"
-version = "1.1.0"
+version = "1.2.0"
 # Con los [[bin]] de spikes el crate tiene varios binarios; tauri build
 # necesita saber cuál es la app (falla con "failed to find main binary").
 default-run = "voice-text-deskapp"
@@ -54,6 +54,7 @@ hound = "3"
 enigo = "0.6"
 arboard = "3"
 reqwest = { version = "0.13", default-features = false, features = ["json", "multipart", "rustls"] }
+voice_activity_detector = "0.2.1"
 
 # ashpd (portals XDG: GlobalShortcuts para R1, RemoteDesktop para M2) es
 # específico de Linux/D-Bus — depende de std::os::unix, no compila en Windows.

@@ -1,6 +1,6 @@
 # ADR-0011 — Activación toggle + VAD con Silero (v1.x)
 
-- **Estado:** Aceptada (diseño; implementación en v1.x) · **Fecha:** 2026-07-05
+- **Estado:** Implementada (v1.x; mergeada a `develop` en #56, validada en Windows 11 el 2026-07-05) · **Fecha:** 2026-07-05
 
 ## Contexto
 
