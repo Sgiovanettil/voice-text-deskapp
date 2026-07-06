@@ -36,6 +36,17 @@
       "toggle": "Press once; stops on its own when silence is detected",
       "saved": "Activation mode saved."
     },
+    "pause": {
+      "label": "Pause before stopping",
+      "hint": "How much continuous silence to wait before the dictation stops on its own.",
+      "saved": "Pause saved.",
+      "custom": "Custom ({{seconds}} s)",
+      "options": {
+        "1200": "Short (1.2 s)",
+        "2000": "Medium (2 s)",
+        "3000": "Long (3 s)"
+      }
+    },
     "outputMode": {
       "label": "What to do with the text",
       "insert": "Insert it where the cursor is",

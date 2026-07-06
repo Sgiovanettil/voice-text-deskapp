@@ -199,10 +199,10 @@ body {
 /* ===== Zócalo torneado con moleteado ===== */
 .socket {
   position: absolute;
-  left: 11px;
+  left: 13px;
   top: 50%;
-  width: 86px;
-  height: 86px;
+  width: 96px;
+  height: 96px;
   transform: translateY(-50%);
   border-radius: 50%;
   background:
@@ -470,10 +470,10 @@ body {
 /* ===== Pantalla rebajada ===== */
 .screen {
   position: absolute;
-  left: 110px;
-  right: 15px;
-  top: 11px;
-  bottom: 11px;
+  left: 124px;
+  right: 16px;
+  top: 12px;
+  bottom: 12px;
   clip-path: polygon(
     10px 0,
     calc(100% - 18px) 0,
@@ -533,7 +533,7 @@ body {
 }
 .label {
   font-stretch: semi-expanded;
-  font-size: 0.78rem;
+  font-size: 0.82rem;
   font-weight: 600;
   letter-spacing: 0.22em;
   text-transform: uppercase;
@@ -548,6 +548,18 @@ body {
   transition:
     color 0.5s ease,
     text-shadow 0.5s ease;
+  /* Fundido al cambiar de mensaje (el span se remonta con key por mensaje). */
+  animation: label-in 0.45s ease;
+}
+@keyframes label-in {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 .bars {
   display: flex;
@@ -630,6 +642,7 @@ body {
   .core .heart,
   .core .neb,
   .socket::after,
+  .label,
   .overlay[data-phase="done"] .glass::after {
     animation: none;
   }
