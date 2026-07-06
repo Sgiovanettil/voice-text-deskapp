@@ -14,8 +14,8 @@
       {
         "label": "settings",
         "title": "VoiceText — Configuración",
-        "width": 720,
-        "height": 560,
+        "width": 760,
+        "height": 600,
         "visible": false,
         "resizable": true
       }
