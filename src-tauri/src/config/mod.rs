@@ -125,7 +125,7 @@ fn default_vad_threshold() -> f32 {
     0.5
 }
 fn default_silence_hangover_ms() -> u64 {
-    1_200
+    2_000
 }
 
 impl Default for VadSettings {
@@ -193,7 +193,7 @@ mod tests {
         assert!(!s.delivery.fallback_typing);
         assert_eq!(s.general.activation_mode, "ptt");
         assert_eq!(s.vad.threshold, 0.5);
-        assert_eq!(s.vad.silence_hangover_ms, 1_200);
+        assert_eq!(s.vad.silence_hangover_ms, 2_000);
         assert_eq!(s.audio.input_device, None);
     }
 

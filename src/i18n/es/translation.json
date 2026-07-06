@@ -36,6 +36,17 @@
       "toggle": "Presionar una vez; se corta solo al detectar silencio",
       "saved": "Modo de activación guardado."
     },
+    "pause": {
+      "label": "Pausa antes de cortar",
+      "hint": "Cuánto silencio seguido espera antes de cerrar el dictado por sí solo.",
+      "saved": "Pausa guardada.",
+      "custom": "Personalizada ({{seconds}} s)",
+      "options": {
+        "1200": "Corta (1,2 s)",
+        "2000": "Media (2 s)",
+        "3000": "Larga (3 s)"
+      }
+    },
     "outputMode": {
       "label": "Qué hacer con el texto",
       "insert": "Insertarlo donde está el cursor",
