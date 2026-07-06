@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use std::sync::mpsc::Sender;
 use std::sync::Mutex;
 
-use tauri::State;
+use tauri::{Emitter, State};
 
 use crate::config::Settings;
 use crate::core::events::DomainEvent;
@@ -76,8 +76,8 @@ pub struct ApiKeyStatus {
     pub masked: Option<String>,
 }
 
-fn api_key_status() -> Result<ApiKeyStatus, IpcError> {
-    let key = persistence::get_api_key()?;
+fn api_key_status(provider_id: &str) -> Result<ApiKeyStatus, IpcError> {
+    let key = persistence::get_api_key(provider_id)?;
     Ok(ApiKeyStatus {
         is_set: key.is_some(),
         masked: key.as_deref().map(persistence::mask_api_key),
@@ -124,37 +124,39 @@ pub fn set_settings(
 
     persistence::save_settings(&state.config_dir, &settings)?;
     *state.settings.lock().expect("settings lock") = settings;
+
+    // Aviso a las webviews (overlay y settings) de que la config cambió, para
+    // que refresquen lo que muestran (p. ej. proveedor/modelo del overlay).
+    let _ = app.emit(
+        "domain-event",
+        &DomainEvent::ConfigChanged {
+            changed_keys: vec!["settings".into()],
+        },
+    );
     Ok(())
 }
 
 #[tauri::command]
-pub fn set_api_key(key: String) -> Result<ApiKeyStatus, IpcError> {
+pub fn set_api_key(provider: String, key: String) -> Result<ApiKeyStatus, IpcError> {
     let trimmed = key.trim();
     if trimmed.is_empty() {
-        persistence::delete_api_key()?;
+        persistence::delete_api_key(&provider)?;
     } else {
-        persistence::set_api_key(trimmed)?;
+        persistence::set_api_key(&provider, trimmed)?;
     }
-    api_key_status()
+    api_key_status(&provider)
 }
 
 #[tauri::command]
-pub fn get_api_key_status() -> Result<ApiKeyStatus, IpcError> {
-    api_key_status()
+pub fn get_api_key_status(provider: String) -> Result<ApiKeyStatus, IpcError> {
+    api_key_status(&provider)
 }
 
 #[tauri::command]
-pub async fn test_provider(state: State<'_, AppState>) -> Result<bool, IpcError> {
-    let key = persistence::get_api_key()?
+pub async fn test_provider(provider: String, model: String) -> Result<bool, IpcError> {
+    let key = persistence::get_api_key(&provider)?
         .ok_or_else(|| IpcError::new("api key no configurada", "err.stt.auth"))?;
-    let model = state
-        .settings
-        .lock()
-        .expect("settings lock")
-        .stt
-        .model
-        .clone();
-    crate::providers::openai::OpenAiProvider::new(key)
+    crate::providers::resolve(&provider, key)
         .check_auth(&model)
         .await
         .map_err(|e| {
