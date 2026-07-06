@@ -15,6 +15,6 @@ Formato: contexto → decisión → consecuencias. Estados: Propuesta · Aceptad
 | [0009](0009-arquitectura-orientada-a-eventos.md) | Arquitectura orientada a eventos de dominio | Aceptada |
 | [0010](0010-auto-update-preparado.md) | Auto-update Tauri preparado desde v1.0, activo post-MVP | Aceptada |
 | [0011](0011-activacion-toggle-vad.md) | Activación toggle + VAD con Silero (v1.x) | Aceptada (diseño; implementación v1.x) |
-| [0012](0012-segundo-proveedor-stt-groq.md) | Segundo proveedor STT: Groq (v1.x) | Aceptada (diseño; implementación v1.x) |
+| [0012](0012-segundo-proveedor-stt-groq.md) | Segundo proveedor STT: Groq (v1.x) | Implementada (v1.x, #58; validada en Windows) |
 | [0013](0013-diccionario-personal.md) | Diccionario personal / reemplazos (v1.x) | Aceptada (diseño; implementación v1.x) |
 | [0014](0014-modos-dictado-postprocesado-llm.md) | Modos de dictado y post-procesado LLM (v2.x) | Aceptada (diseño; implementación v2.x) |
