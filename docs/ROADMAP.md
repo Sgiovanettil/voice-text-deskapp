@@ -97,6 +97,38 @@ quedó construida y firmada, a la espera de publicar el borrador.
 
 ## Post-MVP (orden tentativo)
 
-1. **v1.x:** activación del auto-updater (Windows + AppImage), toggle + VAD ([ADR-0011](adr/0011-activacion-toggle-vad.md)), selección de micrófono (spec en ARCHITECTURE §4.3), segundo proveedor STT: Groq ([ADR-0012](adr/0012-segundo-proveedor-stt-groq.md), valida ADR-003), diccionario personal/reemplazos ([ADR-0013](adr/0013-diccionario-personal.md)), inglés en la UI, ampliación de la matriz Wayland (compositores wlroots).
-2. **v2.x:** streaming STT, Event Bus formal con suscriptores dinámicos, capacidad **LLM** (post-procesado del dictado: limpieza, formato, comandos de voz "en modo prompt" — spec anticipada en [ADR-0014](adr/0014-modos-dictado-postprocesado-llm.md)).
-3. **v3.x+:** TTS, Vision (capturas), Embeddings/RAG, Realtime, plugins; macOS.
+### v1.x — en curso
+
+| Item | Estado |
+| --- | --- |
+| Activación del auto-updater (Windows + AppImage) | ✅ **Entregado** en v1.1.0 (aviso + confirmación del usuario) |
+| Toggle + VAD ([ADR-0011](adr/0011-activacion-toggle-vad.md)) | ✅ **Entregado y validado** end-to-end en Windows 11 (2026-07-05) — modo toggle con corte por silencio (Silero VAD) mergeado a `develop` (#56) |
+| Selección de micrófono (spec en ARCHITECTURE §4.3) | ⏳ Pendiente |
+| Segundo proveedor STT: Groq ([ADR-0012](adr/0012-segundo-proveedor-stt-groq.md), valida ADR-003) | ✅ **Entregado y validado** end-to-end en Windows 11 (2026-07-05) — Groq (`whisper-large-v3-turbo`) mergeado a `develop` (#58); cliente OpenAI-compatible factorizado, key por proveedor, selector + test por proveedor y refresco del widget |
+| Diccionario personal/reemplazos ([ADR-0013](adr/0013-diccionario-personal.md)) | ⏳ Pendiente |
+| Inglés en la UI | ⏳ Pendiente |
+| Ampliación de la matriz Wayland (compositores wlroots) | ⏳ Pendiente |
+| Descubrimiento dinámico de modelos (`GET /v1/models` por proveedor) | ⏳ Pendiente (post-v1.2.0) |
+
+#### Toggle + VAD — detalle de lo entregado (2026-07-05)
+
+1. Nuevo setting `general.activation_mode` (`ptt` default / `toggle`), mismo hotkey para ambos modos. En toggle: una pulsación inicia; corta la segunda pulsación, el silencio sostenido del VAD o el tope de 120 s.
+2. Motor VAD: crate `voice_activity_detector` (Silero sobre ONNX Runtime), chunks de 512 samples @ 16 kHz, con `VadGate` en el hilo de captura (resampler lineal propio para el VAD; el audio transcrito sigue por rubato). El corte solo se arma tras detectar habla — una pausa inicial no cierra el dictado. Sección `vad` en settings: `threshold` (0.5) y `silence_hangover_ms` (1200).
+3. Sin cambios al contrato de eventos salvo el evento aditivo `SilenceDetected` (ADR-0009: solo agregar); telemetría `vad-speaking` para que el overlay muestre "En silencio… cerrando". UI: selector de modo en Atajos, textos según el modo, i18n es/en. Degradación elegante: si ONNX no inicializa, se graba sin corte automático.
+
+#### Segundo proveedor STT: Groq — detalle de lo entregado (2026-07-05)
+
+1. Cliente HTTP factorizado en `OpenAiCompatibleProvider` (multipart, timeout, reintento y mapeo de errores compartidos); OpenAI y Groq solo aportan id, base URL y modelo por defecto. `providers::resolve(id, key)` elige el proveedor por `stt.provider` — el orquestador ya no construye OpenAI a mano (antes puenteaba el registry).
+2. API key por proveedor en el keyring (`openai_api_key`/`groq_api_key`); OpenAI conserva su usuario para no perder la key ya guardada. `check_auth` pasó a ser método del trait `SpeechProvider` (aditivo) para que `test_provider` resuelva por id.
+3. UI: selector de proveedor con key, estado, test y modelos por proveedor; pistas de onboarding; el overlay refresca proveedor/modelo ante `ConfigChanged`. i18n es/en. Validado con key real de Groq en Windows 11.
+4. Diferido (anotado en ADR-0012): migración de `providers/*` a crates propios, para acotar el PR; ortogonal a validar el trait.
+
+### v2.x
+
+Streaming STT, Event Bus formal con suscriptores dinámicos, capacidad **LLM** (post-procesado del dictado: limpieza, formato, comandos de voz "en modo prompt" — spec anticipada en [ADR-0014](adr/0014-modos-dictado-postprocesado-llm.md)).
+
+**Descubrimiento dinámico de modelos.** Hoy la lista de modelos por proveedor es estática (curada en `MODELS_BY_PROVIDER` del frontend y los `DEFAULT_MODEL` de cada `providers/*`). Ambos proveedores (OpenAI y Groq, compatible) exponen `GET /v1/models`, que ya se toca parcialmente en `check_auth`. La idea: un comando `list_models(proveedor, capacidad)` que traiga los modelos del endpoint, los **filtre por capacidad** (el endpoint devuelve todos los modelos mezclados, sin etiqueta de capacidad fiable → heurística por nombre o allow-list por capacidad), los **cachee** y **caiga a la lista estática curada** sin red/sin key. Encaja con la arquitectura por capacidades (ADR-0003) y se paga solo al llegar la capacidad **LLM** (mismo endpoint lista los modelos de chat). Priorizado para hacerse junto con, o justo antes de, la capacidad LLM.
+
+### v3.x+
+
+TTS, Vision (capturas), Embeddings/RAG, Realtime, plugins; macOS.

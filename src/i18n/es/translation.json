@@ -5,8 +5,11 @@
   "settings": {
     "title": "VoiceText",
     "subtitle": "Configuración",
+    "provider": {
+      "label": "Proveedor"
+    },
     "apiKey": {
-      "label": "Clave de API de OpenAI",
+      "label": "Clave de API de {{provider}}",
       "placeholder": "sk-…",
       "save": "Guardar",
       "test": "Probar conexión",
@@ -14,13 +17,24 @@
       "set": "Configurada ({{masked}})",
       "notSet": "Aún no configurada",
       "saved": "Clave guardada de forma segura en el sistema.",
-      "testOk": "Conexión con el proveedor verificada."
+      "testOk": "Conexión con el proveedor verificada.",
+      "hint": {
+        "openai": "Obtén tu clave en platform.openai.com/api-keys.",
+        "groq": "Obtén tu clave en console.groq.com/keys."
+      }
     },
     "hotkey": {
-      "label": "Atajo de dictado (mantener presionado)",
+      "label": "Atajo de dictado",
       "help": "Mantén presionado el atajo para dictar; al soltarlo se transcribe.",
+      "helpToggle": "Presiona el atajo para empezar a dictar; se corta con otra pulsación o solo, al detectar silencio.",
       "save": "Guardar atajo",
       "saved": "Atajo guardado."
+    },
+    "activation": {
+      "label": "Modo de activación",
+      "ptt": "Mantener presionado mientras hablas (push-to-talk)",
+      "toggle": "Presionar una vez; se corta solo al detectar silencio",
+      "saved": "Modo de activación guardado."
     },
     "outputMode": {
       "label": "Qué hacer con el texto",
@@ -38,6 +52,12 @@
         "es": "Español",
         "en": "Inglés"
       }
+    },
+    "audio": {
+      "label": "Micrófono",
+      "device": "Dispositivo de entrada",
+      "default": "Predeterminado del sistema",
+      "saved": "Micrófono guardado."
     },
     "language": {
       "label": "Idioma de la aplicación",
@@ -76,6 +96,7 @@
   "status": {
     "label": "Estado",
     "idle": "Listo para dictar — mantén presionado {{hotkey}}, habla y suéltalo.",
+    "idleToggle": "Listo para dictar — presiona {{hotkey}} y habla; se corta solo al detectar silencio.",
     "recording": "Grabando… (suelta el atajo para transcribir)",
     "processing": "Procesando audio…",
     "transcribing": "Transcribiendo…",
@@ -84,6 +105,7 @@
   },
   "overlay": {
     "listening": "Escuchando…",
+    "silence": "En silencio… cerrando",
     "transcribing": "Transcribiendo…",
     "delivering": "Insertando…",
     "done": "Listo",

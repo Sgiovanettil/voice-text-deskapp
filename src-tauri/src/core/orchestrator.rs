@@ -9,12 +9,12 @@ use std::time::Duration;
 
 use tauri::{AppHandle, Emitter, Manager};
 
-use crate::audio::{AudioData, Recorder};
+use crate::audio::{AudioData, Recorder, VadConfig};
 use crate::core::events::{DomainEvent, OverlayMode, OverlayOutcome};
-use crate::core::state_machine::{Command, CoreState, StateMachine};
+use crate::core::state_machine::{ActivationMode, Command, CoreState, StateMachine};
 use crate::delivery::DeliveryMode;
 use crate::ipc::commands::AppState;
-use crate::speech::{SpeechProvider, TranscribeOptions};
+use crate::speech::TranscribeOptions;
 
 /// Intervalo del tick de timeouts (§3: corte de 120 s, reset de Error ~3 s).
 const TICK: Duration = Duration::from_millis(250);
@@ -56,6 +56,20 @@ pub fn spawn(app: AppHandle) -> Sender<DomainEvent> {
                 }
                 // Contrato IPC: todo evento de dominio llega al frontend 1:1.
                 let _ = app.emit("domain-event", ev);
+            }
+
+            // El modo de activación vigente se refresca desde settings antes
+            // de decidir: cambiarlo en la UI aplica al ciclo siguiente (o al
+            // corte del actual) sin reiniciar.
+            if let Some(state) = app.try_state::<AppState>() {
+                let mode = state
+                    .settings
+                    .lock()
+                    .expect("settings lock")
+                    .general
+                    .activation_mode
+                    .clone();
+                sm.set_mode(ActivationMode::from_setting(&mode));
             }
 
             let prev_state = sm.state();
@@ -101,11 +115,47 @@ pub fn spawn(app: AppHandle) -> Sender<DomainEvent> {
                     let on_level: crate::audio::LevelCallback = Box::new(move |level| {
                         let _ = level_app.emit("audio-level", level);
                     });
-                    match Recorder::start_with_level(Some(on_level)) {
+                    // En modo toggle se arma el corte por VAD (ADR-0011): el
+                    // silencio sostenido entra al core como SilenceDetected y
+                    // el estado hablando/en-silencio va al overlay como
+                    // telemetría (canal "vad-speaking").
+                    let vad = app.try_state::<AppState>().and_then(|state| {
+                        let settings = state.settings.lock().expect("settings lock");
+                        if settings.general.activation_mode != "toggle" {
+                            return None;
+                        }
+                        let silence_tx = self_tx.clone();
+                        let speaking_app = app.clone();
+                        Some(VadConfig {
+                            threshold: settings.vad.threshold,
+                            silence_hangover_ms: settings.vad.silence_hangover_ms,
+                            on_silence: Box::new(move |silence_ms| {
+                                let _ =
+                                    silence_tx.send(DomainEvent::SilenceDetected { silence_ms });
+                            }),
+                            on_speaking: Box::new(move |speaking| {
+                                let _ = speaking_app.emit("vad-speaking", speaking);
+                            }),
+                        })
+                    });
+                    // Micrófono elegido (por nombre) desde settings; None =
+                    // default del SO.
+                    let device_name = app.try_state::<AppState>().and_then(|s| {
+                        s.settings
+                            .lock()
+                            .expect("settings lock")
+                            .audio
+                            .input_device
+                            .clone()
+                    });
+                    match Recorder::start_with_options(Some(on_level), vad, device_name) {
                         Ok(r) => {
+                            // Nombre del micrófono realmente abierto (el resuelto):
+                            // observable qué device quedó grabando vs. el pedido.
+                            let device_id = r.device_name().to_string();
                             recorder = Some(r);
                             let _ = self_tx.send(DomainEvent::RecordingStarted {
-                                device_id: "default".into(),
+                                device_id,
                                 sample_rate: crate::audio::TARGET_SAMPLE_RATE,
                             });
                         }
@@ -201,16 +251,20 @@ fn deliver_text(app: &AppHandle, text: &str, result_tx: &Sender<DomainEvent>) {
 /// orquestador como evento — nunca toca la máquina de estados directamente.
 fn start_transcription(app: &AppHandle, audio: AudioData, result_tx: Sender<DomainEvent>) {
     let state = app.state::<AppState>();
-    let (model, language) = {
+    let (provider_id, model, language) = {
         let settings = state.settings.lock().expect("settings lock");
         let lang = match settings.stt.language.as_str() {
             "auto" => None,
             other => Some(other.to_string()),
         };
-        (settings.stt.model.clone(), lang)
+        (
+            settings.stt.provider.clone(),
+            settings.stt.model.clone(),
+            lang,
+        )
     };
 
-    let api_key = match crate::persistence::get_api_key() {
+    let api_key = match crate::persistence::get_api_key(&provider_id) {
         Ok(Some(key)) => key,
         Ok(None) => {
             let _ = result_tx.send(DomainEvent::TranscriptionFailed {
@@ -231,12 +285,12 @@ fn start_transcription(app: &AppHandle, audio: AudioData, result_tx: Sender<Doma
     };
 
     let _ = result_tx.send(DomainEvent::TranscriptionStarted {
-        provider_id: "openai".into(),
+        provider_id: provider_id.clone(),
         model: model.clone(),
     });
 
     tauri::async_runtime::spawn(async move {
-        let provider = crate::providers::openai::OpenAiProvider::new(api_key);
+        let provider = crate::providers::resolve(&provider_id, api_key);
         let opts = TranscribeOptions {
             language,
             model,
@@ -246,7 +300,7 @@ fn start_transcription(app: &AppHandle, audio: AudioData, result_tx: Sender<Doma
             Ok(transcript) => DomainEvent::TranscriptionCompleted {
                 text: transcript.text,
                 latency_ms: transcript.latency.as_millis() as u64,
-                provider_id: "openai".into(),
+                provider_id: provider_id.clone(),
             },
             Err(e) => DomainEvent::TranscriptionFailed {
                 error_key: match &e {

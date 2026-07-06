@@ -16,6 +16,27 @@ pub enum CoreState {
     Error,
 }
 
+/// Modo de activación del ciclo (ADR-0011). En `Ptt` la grabación vive
+/// mientras el hotkey está presionado; en `Toggle` una pulsación inicia y
+/// la termina otra pulsación, el corte del VAD o el tope de 120 s.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ActivationMode {
+    #[default]
+    Ptt,
+    Toggle,
+}
+
+impl ActivationMode {
+    /// Mapea el valor persistido en settings; desconocidos caen a PTT.
+    pub fn from_setting(value: &str) -> Self {
+        if value == "toggle" {
+            Self::Toggle
+        } else {
+            Self::Ptt
+        }
+    }
+}
+
 /// Comando que la máquina ordena ejecutar tras procesar un evento. La máquina
 /// decide; el orquestador (core) ejecuta el I/O y realimenta con el evento
 /// resultante.
@@ -45,6 +66,10 @@ pub struct StateMachine {
     state: CoreState,
     /// Instante (ms, reloj del llamador) en que se entró al estado actual.
     entered_at_ms: u64,
+    /// Modo vigente al iniciar el ciclo; el orquestador lo refresca desde
+    /// settings antes de cada evento (cambiarlo a mitad de ciclo es seguro:
+    /// solo altera qué disparadores cortan la grabación).
+    mode: ActivationMode,
 }
 
 impl StateMachine {
@@ -52,11 +77,16 @@ impl StateMachine {
         Self {
             state: CoreState::Idle,
             entered_at_ms: 0,
+            mode: ActivationMode::Ptt,
         }
     }
 
     pub fn state(&self) -> CoreState {
         self.state
+    }
+
+    pub fn set_mode(&mut self, mode: ActivationMode) {
+        self.mode = mode;
     }
 
     fn transition(&mut self, next: CoreState, now_ms: u64) {
@@ -73,7 +103,25 @@ impl StateMachine {
                 self.transition(CoreState::Recording, now_ms);
                 Command::StartRecording
             }
-            (CoreState::Recording, DomainEvent::HotkeyReleased { .. }) => Command::StopRecording,
+            // PTT: soltar el hotkey corta. En toggle la liberación que sigue a
+            // la pulsación inicial se ignora — el ciclo sigue grabando.
+            (CoreState::Recording, DomainEvent::HotkeyReleased { .. }) => match self.mode {
+                ActivationMode::Ptt => Command::StopRecording,
+                ActivationMode::Toggle => Command::None,
+            },
+            // Toggle: la segunda pulsación corta (en PTT la reentrada cae al
+            // catch-all y se ignora, regla original).
+            (CoreState::Recording, DomainEvent::HotkeyPressed { .. })
+                if self.mode == ActivationMode::Toggle =>
+            {
+                Command::StopRecording
+            }
+            // Toggle: silencio sostenido del VAD corta igual que el hotkey.
+            (CoreState::Recording, DomainEvent::SilenceDetected { .. })
+                if self.mode == ActivationMode::Toggle =>
+            {
+                Command::StopRecording
+            }
             (CoreState::Recording, DomainEvent::RecordingStopped { duration_ms, .. }) => {
                 if *duration_ms < MIN_RECORDING_MS {
                     // Pulsación accidental: a Idle sin llamar al proveedor.
@@ -290,6 +338,61 @@ mod tests {
             sm.handle(&recording_stopped(MAX_RECORDING_MS), MAX_RECORDING_MS + 50),
             Command::StartTranscription
         );
+    }
+
+    #[test]
+    fn toggle_ignora_release_y_corta_con_segunda_pulsacion() {
+        let mut sm = StateMachine::new();
+        sm.set_mode(ActivationMode::Toggle);
+
+        assert_eq!(sm.handle(&hotkey_pressed(), 0), Command::StartRecording);
+        // La liberación inmediata tras la pulsación inicial no corta.
+        assert_eq!(
+            sm.handle(&DomainEvent::HotkeyReleased { timestamp: 120 }, 120),
+            Command::None
+        );
+        assert_eq!(sm.state(), CoreState::Recording);
+
+        // La segunda pulsación sí corta.
+        assert_eq!(sm.handle(&hotkey_pressed(), 5_000), Command::StopRecording);
+        assert_eq!(sm.state(), CoreState::Recording);
+        assert_eq!(
+            sm.handle(&recording_stopped(5_000), 5_050),
+            Command::StartTranscription
+        );
+    }
+
+    #[test]
+    fn toggle_corta_por_silencio_del_vad() {
+        let mut sm = StateMachine::new();
+        sm.set_mode(ActivationMode::Toggle);
+        sm.handle(&hotkey_pressed(), 0);
+
+        assert_eq!(
+            sm.handle(&DomainEvent::SilenceDetected { silence_ms: 1_200 }, 6_000),
+            Command::StopRecording
+        );
+    }
+
+    #[test]
+    fn ptt_ignora_silencio_del_vad() {
+        let mut sm = StateMachine::new();
+        sm.handle(&hotkey_pressed(), 0);
+        assert_eq!(
+            sm.handle(&DomainEvent::SilenceDetected { silence_ms: 1_200 }, 6_000),
+            Command::None
+        );
+        assert_eq!(sm.state(), CoreState::Recording);
+    }
+
+    #[test]
+    fn from_setting_mapea_toggle_y_cae_a_ptt() {
+        assert_eq!(
+            ActivationMode::from_setting("toggle"),
+            ActivationMode::Toggle
+        );
+        assert_eq!(ActivationMode::from_setting("ptt"), ActivationMode::Ptt);
+        assert_eq!(ActivationMode::from_setting("otro"), ActivationMode::Ptt);
     }
 
     #[test]

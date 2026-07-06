@@ -10,8 +10,42 @@ use std::thread::JoinHandle;
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 
+pub mod vad;
+
 /// Frecuencia objetivo del pipeline STT (§4.3).
 pub const TARGET_SAMPLE_RATE: u32 = 16_000;
+
+/// Nombres de los dispositivos de entrada disponibles (ARCHITECTURE §4.3), en
+/// el orden que reporta el host. Vacío si no hay micrófonos o el host falla.
+pub fn list_input_devices() -> Vec<String> {
+    cpal::default_host()
+        .input_devices()
+        .map(|devs| {
+            devs.filter_map(|d| d.description().ok().map(|desc| desc.name().to_string()))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Resuelve el dispositivo de entrada por nombre; si el nombre no existe (o es
+/// `None`), cae al default del SO — un micrófono desconectado nunca rompe la
+/// captura (principio de degradación elegante).
+fn select_input_device(host: &cpal::Host, name: Option<&str>) -> Option<cpal::Device> {
+    if let Some(name) = name {
+        if let Ok(mut devices) = host.input_devices() {
+            if let Some(dev) =
+                devices.find(|d| d.description().is_ok_and(|desc| desc.name() == name))
+            {
+                return Some(dev);
+            }
+        }
+        tracing::warn!(
+            device = name,
+            "micrófono elegido no encontrado; usando el default"
+        );
+    }
+    host.default_input_device()
+}
 /// Tope del buffer de captura: 120 s de dictado máximo (ARCHITECTURE §3).
 pub const MAX_CAPTURE_SECONDS: u32 = 120;
 
@@ -133,6 +167,10 @@ pub mod convert {
 pub struct Recorder {
     stop_tx: mpsc::Sender<()>,
     thread: JoinHandle<Result<AudioData, AudioError>>,
+    /// Nombre del micrófono que el host abrió de verdad (el resuelto, no el
+    /// pedido): alimenta `RecordingStarted.device_id` para que sea observable
+    /// qué dispositivo quedó grabando.
+    device_name: String,
 }
 
 /// Callback de nivel de entrada (0..1, RMS normalizado), invocado desde el
@@ -144,6 +182,17 @@ const LEVEL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(33)
 /// Ganancia para llevar el RMS de voz típico a un rango visual útil.
 const LEVEL_GAIN: f32 = 6.0;
 
+/// Configuración del corte por VAD en modo toggle (ADR-0011). Los callbacks
+/// corren en el hilo de captura: deben limitarse a encolar eventos.
+pub struct VadConfig {
+    pub threshold: f32,
+    pub silence_hangover_ms: u64,
+    /// Silencio sostenido alcanzó el hangover (una vez por grabación).
+    pub on_silence: Box<dyn Fn(u64) + Send + 'static>,
+    /// Cambio de estado hablando/en-silencio (telemetría para el overlay).
+    pub on_speaking: Box<dyn Fn(bool) + Send + 'static>,
+}
+
 impl Recorder {
     /// Abre el dispositivo de entrada por defecto y empieza a capturar.
     /// Devuelve error si no hay dispositivo o el stream no arranca.
@@ -153,19 +202,44 @@ impl Recorder {
 
     /// Como [`Recorder::start`], reportando además el nivel de entrada.
     pub fn start_with_level(on_level: Option<LevelCallback>) -> Result<Self, AudioError> {
-        let (stop_tx, stop_rx) = mpsc::channel::<()>();
-        let (ready_tx, ready_rx) = mpsc::channel::<Result<(), AudioError>>();
+        Self::start_with_options(on_level, None, None)
+    }
 
-        let thread = std::thread::spawn(move || capture_thread(&stop_rx, &ready_tx, on_level));
+    /// Como [`Recorder::start_with_level`], opcionalmente con corte por VAD
+    /// (modo toggle) y con el micrófono elegido por nombre (`None` = default
+    /// del SO). Si el VAD no puede inicializarse se degrada a grabar sin corte
+    /// automático (queda el tope de 120 s); un nombre de micrófono inexistente
+    /// cae al default — nunca falla el inicio por configuración de captura.
+    pub fn start_with_options(
+        on_level: Option<LevelCallback>,
+        vad: Option<VadConfig>,
+        device_name: Option<String>,
+    ) -> Result<Self, AudioError> {
+        let (stop_tx, stop_rx) = mpsc::channel::<()>();
+        // El Ok trae el nombre del micrófono que el host abrió de verdad (§4.3).
+        let (ready_tx, ready_rx) = mpsc::channel::<Result<String, AudioError>>();
+
+        let thread = std::thread::spawn(move || {
+            capture_thread(&stop_rx, &ready_tx, on_level, vad, device_name.as_deref())
+        });
 
         match ready_rx.recv() {
-            Ok(Ok(())) => Ok(Self { stop_tx, thread }),
+            Ok(Ok(device_name)) => Ok(Self {
+                stop_tx,
+                thread,
+                device_name,
+            }),
             Ok(Err(e)) => {
                 let _ = thread.join();
                 Err(e)
             }
             Err(_) => Err(AudioError::Stream("capture thread died".into())),
         }
+    }
+
+    /// Nombre del micrófono realmente abierto por el host (§4.3).
+    pub fn device_name(&self) -> &str {
+        &self.device_name
     }
 
     /// Detiene la captura y entrega el audio procesado.
@@ -179,14 +253,27 @@ impl Recorder {
 
 fn capture_thread(
     stop_rx: &mpsc::Receiver<()>,
-    ready_tx: &mpsc::Sender<Result<(), AudioError>>,
+    ready_tx: &mpsc::Sender<Result<String, AudioError>>,
     on_level: Option<LevelCallback>,
+    vad: Option<VadConfig>,
+    device_name: Option<&str>,
 ) -> Result<AudioData, AudioError> {
     let host = cpal::default_host();
-    let Some(device) = host.default_input_device() else {
+    let Some(device) = select_input_device(&host, device_name) else {
         let _ = ready_tx.send(Err(AudioError::NoInputDevice));
         return Err(AudioError::NoInputDevice);
     };
+    // Nombre del device efectivamente abierto (el resuelto): a `RecordingStarted`
+    // y al log, para poder confirmar qué micrófono quedó grabando vs. el pedido.
+    let opened_name = device
+        .description()
+        .map(|d| d.name().to_string())
+        .unwrap_or_else(|_| "desconocido".to_string());
+    tracing::info!(
+        requested = device_name.unwrap_or("(default)"),
+        opened = %opened_name,
+        "micrófono de captura resuelto"
+    );
     let config = match device.default_input_config() {
         Ok(c) => c,
         Err(e) => {
@@ -199,10 +286,36 @@ fn capture_thread(
     let channels = usize::from(config.channels());
     let max_samples = sample_rate as usize * channels * MAX_CAPTURE_SECONDS as usize;
 
+    // Gate del VAD (solo modo toggle). Si Silero/ONNX no inicializa, se
+    // degrada explícitamente: warn al log y grabación sin corte automático.
+    let mut vad_state = vad.and_then(|cfg| {
+        match vad::VadGate::new(
+            sample_rate,
+            channels,
+            cfg.threshold,
+            cfg.silence_hangover_ms,
+        ) {
+            Ok(gate) => Some((gate, cfg)),
+            Err(e) => {
+                tracing::warn!(error = %e, "VAD no disponible; se graba sin corte por silencio");
+                None
+            }
+        }
+    });
+
     let buffer = Arc::new(Mutex::new(Vec::<f32>::new()));
     let writer = Arc::clone(&buffer);
     let mut last_level = std::time::Instant::now() - LEVEL_INTERVAL;
     let push = move |data: &[f32]| {
+        if let Some((gate, cfg)) = &mut vad_state {
+            let update = gate.feed(data);
+            if let Some(speaking) = update.speaking_changed {
+                (cfg.on_speaking)(speaking);
+            }
+            if let Some(silence_ms) = update.silence_cut_ms {
+                (cfg.on_silence)(silence_ms);
+            }
+        }
         // Nivel RMS del chunk, con throttle: alimenta la onda del overlay.
         if let Some(cb) = &on_level {
             if last_level.elapsed() >= LEVEL_INTERVAL && !data.is_empty() {
@@ -230,7 +343,7 @@ fn capture_thread(
         let _ = ready_tx.send(Err(AudioError::Stream(msg.clone())));
         return Err(AudioError::Stream(msg));
     }
-    let _ = ready_tx.send(Ok(()));
+    let _ = ready_tx.send(Ok(opened_name));
 
     // Bloquea hasta que Recorder::stop() envíe la señal (o se caiga el otro lado).
     let _ = stop_rx.recv();
