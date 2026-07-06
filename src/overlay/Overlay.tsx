@@ -10,7 +10,12 @@ import "./Overlay.css";
 type Phase = "idle" | "listening" | "transcribing" | "delivering" | "done" | "error";
 
 /** Cuánto se muestra "Listo"/error antes de volver a reposo. */
-const DWELL_MS = 900;
+const DWELL_MS = 1500;
+
+/** Silencio sostenido antes de cambiar el label a "cerrando": el VAD alterna
+ *  hablando/silencio en cada pausa natural del habla y sin este colchón el
+ *  texto parpadea de forma molesta. */
+const SILENCE_LABEL_DELAY_MS = 700;
 
 /** Nombres de marca de los proveedores para el widget (no se traducen). */
 const PROVIDER_NAMES: Record<string, string> = { openai: "OpenAI", groq: "Groq" };
@@ -38,7 +43,7 @@ function amp(u: number, i: number, t: number, phase: Phase, doneAt: number): num
       return (0.25 + 0.75 * Math.abs(p)) * env;
     }
     case "done": {
-      const decay = Math.max(0, 1 - (t - doneAt) / 70);
+      const decay = Math.max(0, 1 - (t - doneAt) / 110);
       return env * (0.14 + 0.86 * decay * Math.abs(Math.sin(u * 22 + t * 0.05)));
     }
     case "error":
@@ -81,19 +86,27 @@ function Overlay() {
   }, []);
 
   // Modo toggle (ADR-0011): el backend emite "vad-speaking" solo cuando el VAD
-  // está armado. En escucha, el silencio muestra que el cierre viene solo.
+  // está armado. En escucha, el silencio muestra que el cierre viene solo —
+  // pero recién tras un silencio sostenido, para que el label no parpadee con
+  // cada pausa natural del habla.
   useEffect(() => {
+    let silenceTimer: ReturnType<typeof setTimeout> | undefined;
+    const showListening = (message: string) => {
+      setState((prev) => (prev.phase === "listening" ? { phase: "listening", message } : prev));
+    };
     const unlisten = listen<boolean>("vad-speaking", ({ payload: speaking }) => {
-      setState((prev) =>
-        prev.phase === "listening"
-          ? {
-              phase: "listening",
-              message: speaking ? t("overlay.listening") : t("overlay.silence"),
-            }
-          : prev,
-      );
+      clearTimeout(silenceTimer);
+      if (speaking) {
+        showListening(t("overlay.listening"));
+      } else {
+        silenceTimer = setTimeout(
+          () => showListening(t("overlay.silence")),
+          SILENCE_LABEL_DELAY_MS,
+        );
+      }
     });
     return () => {
+      clearTimeout(silenceTimer);
       unlisten.then((fn) => fn()).catch(() => {});
     };
   }, [t]);
@@ -183,12 +196,22 @@ function Overlay() {
     let time = 0;
     let raf = 0;
     let lastPhase: Phase = phaseRef.current;
+    let prevPhase: Phase = lastPhase;
+    let phaseChangedAt = -1000;
 
     const draw = () => {
       time += reduce ? 0.15 : 1;
       const phase = phaseRef.current;
-      if (phase === "done" && lastPhase !== "done") doneAtRef.current = time;
+      if (phase !== lastPhase) {
+        if (phase === "done") doneAtRef.current = time;
+        prevPhase = lastPhase;
+        phaseChangedAt = time;
+      }
       lastPhase = phase;
+      // Crossfade entre fases (~400 ms): sin él la onda salta de golpe a la
+      // animación nueva al cambiar de fase (p. ej. el destello al presionar
+      // el atajo, o el corte seco de "Listo" a reposo).
+      const mix = Math.min(1, (time - phaseChangedAt) / 24);
 
       const dpr = Math.min(devicePixelRatio || 1, 2);
       const w = canvas.width / dpr;
@@ -217,14 +240,22 @@ function Overlay() {
       const heights: number[] = [];
       for (let i = 0; i < n; i++) {
         const u = i / (n - 1);
+        let target: number;
         if (live) {
           const env = Math.pow(Math.exp(-Math.pow((u - 0.5) / 0.32, 2)), 1.1);
           const idx = history.length - n + i;
           const lvl = idx >= 0 ? history[idx] : 0;
-          heights.push(Math.min(1, (0.06 + lvl * 1.35) * env));
+          // Compresión √: los niveles RMS de voz normal rondan 0.05–0.3 y
+          // lineales dejaban la onda enana frente a las fases sintéticas.
+          target = Math.min(1, (0.08 + Math.sqrt(lvl) * 1.05) * env);
         } else {
-          heights.push(Math.min(1, amp(u, i, time, phase, doneAtRef.current)));
+          target = Math.min(1, amp(u, i, time, phase, doneAtRef.current));
         }
+        if (mix < 1) {
+          const from = Math.min(1, amp(u, i, time, prevPhase, doneAtRef.current));
+          target = from * (1 - mix) + target * mix;
+        }
+        heights.push(target);
       }
       ctx.shadowBlur = 16;
       ctx.shadowColor = col;
@@ -270,7 +301,8 @@ function Overlay() {
       </div>
       <div className="screen">
         <div className="topline">
-          <span className="label" role="status">
+          {/* key por mensaje: remonta el span y dispara el fundido CSS. */}
+          <span className="label" role="status" key={state.message}>
             {state.message}
           </span>
           <span className="bars" aria-hidden="true">

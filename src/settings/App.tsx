@@ -11,6 +11,7 @@ import type {
   IpcError,
   Settings,
   SttSettings,
+  VadSettings,
 } from "../shared/settings";
 import "./App.css";
 
@@ -31,6 +32,9 @@ const MODELS_BY_PROVIDER: Record<string, string[]> = {
   groq: ["whisper-large-v3-turbo", "whisper-large-v3"],
 };
 const STT_LANGUAGES = ["auto", "es", "en"];
+// Pausas de silencio (ms) que cierran el dictado en modo toggle; espejo del
+// default en config::default_silence_hangover_ms (2000).
+const SILENCE_PAUSES_MS = [1200, 2000, 3000] as const;
 const UI_LANGUAGES = ["es", "en"];
 const SECTIONS: SectionId[] = ["general", "recognition", "shortcuts", "about"];
 
@@ -153,6 +157,17 @@ function App() {
   const patchStt = (patch: Partial<SttSettings>, okKey: string) => {
     if (!settings) return;
     const updated: Settings = { ...settings, stt: { ...settings.stt, ...patch } };
+    invoke("set_settings", { settings: updated })
+      .then(() => {
+        setSettings(updated);
+        setFeedback({ kind: "ok", text: t(okKey) });
+      })
+      .catch(showError);
+  };
+
+  const patchVad = (patch: Partial<VadSettings>, okKey: string) => {
+    if (!settings) return;
+    const updated: Settings = { ...settings, vad: { ...settings.vad, ...patch } };
     invoke("set_settings", { settings: updated })
       .then(() => {
         setSettings(updated);
@@ -530,6 +545,37 @@ function App() {
                 {t("settings.activation.toggle")}
               </label>
             </section>
+            {settings?.general.activation_mode === "toggle" && (
+              <section className="group">
+                <h3>{t("settings.pause.label")}</h3>
+                <p className="hint">{t("settings.pause.hint")}</p>
+                <label className="field">
+                  {t("settings.pause.label")}
+                  <select
+                    value={String(settings.vad.silence_hangover_ms)}
+                    onChange={(e) =>
+                      patchVad(
+                        { silence_hangover_ms: Number(e.target.value) },
+                        "settings.pause.saved",
+                      )
+                    }
+                  >
+                    {SILENCE_PAUSES_MS.map((ms) => (
+                      <option key={ms} value={String(ms)}>
+                        {t(`settings.pause.options.${ms}`)}
+                      </option>
+                    ))}
+                    {!SILENCE_PAUSES_MS.some((ms) => ms === settings.vad.silence_hangover_ms) && (
+                      <option value={String(settings.vad.silence_hangover_ms)}>
+                        {t("settings.pause.custom", {
+                          seconds: settings.vad.silence_hangover_ms / 1000,
+                        })}
+                      </option>
+                    )}
+                  </select>
+                </label>
+              </section>
+            )}
             <section className="group">
               <h3>{t("settings.hotkey.label")}</h3>
               <p className="hint">
