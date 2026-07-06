@@ -1,4 +1,4 @@
-//! Spike R2 — overlay sin foco. Ver docs/spikes/r2-overlay-sin-foco.md.
+//! Spike R2 — overlay sin foco. Ver docs/2-arquitectura/spikes/r2-overlay-sin-foco.md.
 //!
 //! Protocolo de prueba manual: abrir un editor de texto y dejar el cursor en
 //! un campo; ejecutar `cargo run --bin spike-overlay`; sin tocar el mouse,

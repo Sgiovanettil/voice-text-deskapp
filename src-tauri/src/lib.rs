@@ -1,4 +1,4 @@
-//! Módulos de negocio por capacidad. Ver docs/ARCHITECTURE.md §4 y §8.4.
+//! Módulos de negocio por capacidad. Ver docs/2-arquitectura/ARCHITECTURE.md §4 y §8.4.
 //!
 //! `dead_code` desactivado a nivel de crate: quedan tipos de contrato
 //! (ARCHITECTURE.md) que recién se instancian con el orquestador de M1-PR8.

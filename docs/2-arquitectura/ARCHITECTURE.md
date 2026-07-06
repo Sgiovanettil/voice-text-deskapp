@@ -1,7 +1,7 @@
 # Arquitectura — VoiceText (nombre provisional)
 
 - **Versión:** 0.1.0 · **Fecha:** 2026-07-02 · **Estado:** En revisión
-- **Documentos relacionados:** [PRD](PRD.md) · [ADRs](adr/)
+- **Documentos relacionados:** [PRD](../1-fundamentos/PRD.md) · [ADRs](DECISIONS/)
 
 Este documento detalla la arquitectura técnica del sistema descrito en el PRD. No contiene código de implementación; los fragmentos en Rust/TypeScript son **contratos conceptuales**.
 
@@ -102,7 +102,7 @@ Reglas:
 ### 4.1 `core/`
 Máquina de estados (§3) + despachador de eventos. Sin I/O propio: recibe eventos, decide, ordena (vía comandos internos a audio/speech/delivery) y emite eventos. Es el único módulo que conoce la secuencia del ciclo.
 
-Post-MVP: entre transcripción y entrega se insertan etapas de post-procesamiento del texto — diccionario personal (v1.x, [ADR-0013](adr/0013-diccionario-personal.md)) y pasada LLM opcional según modo de dictado (v2.x, [ADR-0014](adr/0014-modos-dictado-postprocesado-llm.md)).
+Post-MVP: entre transcripción y entrega se insertan etapas de post-procesamiento del texto — diccionario personal (v1.x, [ADR-0013](DECISIONS/0013-diccionario-personal.md)) y pasada LLM opcional según modo de dictado (v2.x, [ADR-0014](DECISIONS/0014-modos-dictado-postprocesado-llm.md)).
 
 ### 4.2 `hotkeys/`
 Traduce press/release del acelerador configurado a `HotkeyPressed/Released`; valida y re-registra ante `ConfigChanged`. Diseñado como **abstracción con backends por plataforma** (ADR-004, Wayland de primera clase):
@@ -113,14 +113,14 @@ Traduce press/release del acelerador configurado a `HotkeyPressed/Released`; val
 
 El backend activo y su capacidad se publican como estado (`ConfigChanged`/estado de la app) para que la UI comunique degradaciones explícitas.
 
-Post-MVP (v1.x): modo de activación `toggle` con corte por VAD, mismo hotkey y mismos eventos `HotkeyPressed/Released` como disparadores — spec en [ADR-0011](adr/0011-activacion-toggle-vad.md).
+Post-MVP (v1.x): modo de activación `toggle` con corte por VAD, mismo hotkey y mismos eventos `HotkeyPressed/Released` como disparadores — spec en [ADR-0011](DECISIONS/0011-activacion-toggle-vad.md).
 
 ### 4.3 `audio/`
 - Captura con `cpal`, dispositivo por defecto del sistema. **Selección de micrófono (v1.x):** enumeración de dispositivos de entrada vía `cpal`, persistencia por **nombre de dispositivo** en settings con fallback al default del SO si el dispositivo desaparece, dropdown en la UI de settings.
 - Conversión a **16 kHz mono f32→i16** (resampling con `rubato`), buffer en memoria (`Vec<i16>`, límite 120 s ≈ 3,8 MB).
 - Codificación a WAV en memoria justo antes del envío (simple, universal; FLAC como optimización futura).
 - El audio **nunca** toca disco (PRD §15.5), salvo flag `--debug-audio` explícito.
-- **VAD (v1.x):** Silero vía crate `voice_activity_detector` sobre los mismos frames mono 16 kHz (chunks de 512 samples); solo corta el final de la grabación en modo toggle — spec en [ADR-0011](adr/0011-activacion-toggle-vad.md).
+- **VAD (v1.x):** Silero vía crate `voice_activity_detector` sobre los mismos frames mono 16 kHz (chunks de 512 samples); solo corta el final de la grabación en modo toggle — spec en [ADR-0011](DECISIONS/0011-activacion-toggle-vad.md).
 
 ### 4.4 `speech/`
 
@@ -146,7 +146,7 @@ enum SpeechError {           // taxonomía estable, agnóstica de proveedor
 
 `ProviderRegistry`: mapa `id → factory`; resuelve según `config.stt.provider`. Registrar un proveedor nuevo = implementar el trait + una línea en el catálogo del registry (RNF-08). Cuando exista el segundo proveedor, `providers/*` migra a crates propios (PRD §17, ítem 2).
 
-El segundo proveedor (v1.x) es **Groq** (`whisper-large-v3-turbo`, endpoint compatible OpenAI): valida el trait con costo de integración mínimo — spec en [ADR-0012](adr/0012-segundo-proveedor-stt-groq.md).
+El segundo proveedor (v1.x) es **Groq** (`whisper-large-v3-turbo`, endpoint compatible OpenAI): valida el trait con costo de integración mínimo — spec en [ADR-0012](DECISIONS/0012-segundo-proveedor-stt-groq.md).
 
 ### 4.5 `providers/openai/`
 - Endpoint `POST /v1/audio/transcriptions` (multipart WAV).
@@ -155,7 +155,7 @@ El segundo proveedor (v1.x) es **Groq** (`whisper-large-v3-turbo`, endpoint comp
 - HTTP con `reqwest` (rustls, HTTPS only). La key se lee del keyring al momento de uso; nunca se mantiene en config ni cruza el IPC.
 
 ### 4.6 `delivery/`
-Dos modos (RF-06): `insert` (texto en la app activa) y `clipboard` (solo copiar). El mecanismo de `insert` es la decisión **ADR-005 (Aceptada; validada por el spike R3 e implementada en M2)** — ver evaluación en [`adr/0005`](adr/0005-mecanismo-insercion-texto.md). Resumen de lo implementado:
+Dos modos (RF-06): `insert` (texto en la app activa) y `clipboard` (solo copiar). El mecanismo de `insert` es la decisión **ADR-005 (Aceptada; validada por el spike R3 e implementada en M2)** — ver evaluación en [`DECISIONS/0005`](DECISIONS/0005-mecanismo-insercion-texto.md). Resumen de lo implementado:
 
 - **Primario:** clipboard + orden de pegado sintética (Ctrl+V) con **guardado/restauración del clipboard** (solo texto en MVP). El delay antes de restaurar es de **300 ms** tras emitir el pegado (constante `RESTORE_DELAY` en `delivery/mod.rs`) — ventana en la que un gestor de clipboard externo puede capturar el texto (limitación documentada en ADR-005).
 - **Perfiles de pegado por app (post-MVP, solo concepto):** combinación configurable (los terminales usan Ctrl+Shift+V); detección por clase de ventana en X11/Windows con tabla editable (en Wayland la identificación de la ventana activa es limitada: perfil por defecto + override manual). En MVP no existe la tabla: siempre Ctrl+V.
@@ -165,7 +165,7 @@ Dos modos (RF-06): `insert` (texto en la app activa) y `clipboard` (solo copiar)
 
 **Backends de síntesis de input por plataforma** (ADR-004): Windows (SendInput vía enigo) · X11 (XTest) · Wayland (portal `RemoteDesktop` con consentimiento, o `ydotool`/uinput si está disponible; si no hay ninguna vía, el modo `insert` se deshabilita con mensaje explícito y queda `clipboard`).
 
-El **spike de validación** (R3) se ejecutó con resultado positivo en Windows 11 (2026-07-03) y el ADR pasó a Aceptada; la columna Linux de la matriz queda pendiente para cuando se retomen pruebas en Linux (ver `docs/spikes/`).
+El **spike de validación** (R3) se ejecutó con resultado positivo en Windows 11 (2026-07-03) y el ADR pasó a Aceptada; la columna Linux de la matriz queda pendiente para cuando se retomen pruebas en Linux (ver `docs/2-arquitectura/spikes/`).
 
 ### 4.7 `config/` y `persistence/`
 - Esquema versionado (`schema_version`) con migraciones; validación y defaults centralizados.
@@ -229,7 +229,7 @@ Borde Tauri. Dos superficies:
 - **Unit (Rust):** máquina de estados (transiciones + timeouts, con reloj simulado), config/migraciones, mapeo de errores, provider OpenAI contra `wiremock`.
 - **Contrato de eventos:** test de snapshot de serialización de cada evento (protege el contrato IPC/futuros suscriptores).
 - **Frontend:** vitest + testing-library para settings; overlay por snapshot de estados.
-- **Smoke manual por release:** checklist en `docs/DEVELOPMENT.md` (dictado en editor, terminal y navegador; ambos SO; error de key; sin red).
+- **Smoke manual por release:** checklist en `docs/3-desarrollo/SETUP_DEV.md` (dictado en editor, terminal y navegador; ambos SO; error de key; sin red).
 - **Spikes previos a M1:** (a) overlay sin foco en Windows, X11 y Wayland GNOME/KDE (R2); (b) matriz de inserción de texto en las mismas plataformas (R3/ADR-005); (c) hotkey vía portal GlobalShortcuts en GNOME/KDE (R1/ADR-004).
 
 ## 8. Empaquetado y CI

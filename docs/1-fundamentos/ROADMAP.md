@@ -22,10 +22,10 @@ Fuente de verdad del alcance por hito: [PRD §12](PRD.md#12-roadmap). Este docum
 6. i18n base con `react-i18next`, catálogos `es`/`en`.
 7. Tooling de calidad: ESLint (+ regla anti-literales JSX), Prettier, commitlint, husky, rustfmt.
 8. CI (`ci.yml`: lint/test/build en matriz Windows+Linux) y CD (`release.yml`: changelog + bundles firmados, inerte hasta el primer tag).
-9. Los 3 spikes de riesgo (`spike-overlay`, `spike-delivery`, `spike-hotkey-portal`) como binarios compilables, con plantillas de reporte en `docs/spikes/`.
-10. Esta guía de roadmap + `docs/DEVELOPMENT.md`.
+9. Los 3 spikes de riesgo (`spike-overlay`, `spike-delivery`, `spike-hotkey-portal`) como binarios compilables, con plantillas de reporte en `docs/2-arquitectura/spikes/`.
+10. Esta guía de roadmap + `docs/3-desarrollo/SETUP_DEV.md`.
 
-**Spikes** (bloqueante del PRD §14, parcialmente resuelto): R2 y R3 validados en Windows 11 (2026-07-03) con resultado positivo — ver `docs/spikes/`. Pendientes: columna Linux de R2/R3 y R1 completo (solo Wayland), cuando se retomen pruebas en Linux. Con la evidencia Windows se decidió avanzar M1 enfocado solo en Windows.
+**Spikes** (bloqueante del PRD §14, parcialmente resuelto): R2 y R3 validados en Windows 11 (2026-07-03) con resultado positivo — ver `docs/2-arquitectura/spikes/`. Pendientes: columna Linux de R2/R3 y R1 completo (solo Wayland), cuando se retomen pruebas en Linux. Con la evidencia Windows se decidió avanzar M1 enfocado solo en Windows.
 
 ### M1 — detalle de lo entregado (2026-07-03)
 
@@ -81,7 +81,7 @@ menú nativo del tray cambia de idioma recién al reiniciar la app.
    conf para que bundles y `latest.json` sean verificables por el updater oficial desde la primera
    release. En ese hito el updater seguía inactivo en runtime (sin endpoints, sin plugin); su
    activación quedó para v1.x — **ya implementada**: `tauri-plugin-updater` habilitado, endpoints
-   al `latest.json` del Release y UI de aviso/instalación (ver `docs/RELEASING.md` y ADR-010).
+   al `latest.json` del Release y UI de aviso/instalación (ver `docs/3-desarrollo/DEPLOY_PREPROD.md` y ADR-010).
 3. **Release automatizado → v1.0.0**: bump de versión por `release/1.0.0` → `main` (tag `v1.0.0`)
    que dispara `release.yml`: changelog (git-cliff) + bundles firmados (Windows NSIS/MSI, Linux
    AppImage/deb/rpm) + `latest.json`, publicados como **Release en borrador** para revisión y
@@ -102,10 +102,10 @@ quedó construida y firmada, a la espera de publicar el borrador.
 | Item | Estado |
 | --- | --- |
 | Activación del auto-updater (Windows + AppImage) | ✅ **Entregado** en v1.1.0 (aviso + confirmación del usuario) |
-| Toggle + VAD ([ADR-0011](adr/0011-activacion-toggle-vad.md)) | ✅ **Entregado y validado** end-to-end en Windows 11 (2026-07-05) — modo toggle con corte por silencio (Silero VAD) mergeado a `develop` (#56) |
+| Toggle + VAD ([ADR-0011](../2-arquitectura/DECISIONS/0011-activacion-toggle-vad.md)) | ✅ **Entregado y validado** end-to-end en Windows 11 (2026-07-05) — modo toggle con corte por silencio (Silero VAD) mergeado a `develop` (#56) |
 | Selección de micrófono (spec en ARCHITECTURE §4.3) | ⏳ Pendiente |
-| Segundo proveedor STT: Groq ([ADR-0012](adr/0012-segundo-proveedor-stt-groq.md), valida ADR-003) | ✅ **Entregado y validado** end-to-end en Windows 11 (2026-07-05) — Groq (`whisper-large-v3-turbo`) mergeado a `develop` (#58); cliente OpenAI-compatible factorizado, key por proveedor, selector + test por proveedor y refresco del widget |
-| Diccionario personal/reemplazos ([ADR-0013](adr/0013-diccionario-personal.md)) | ⏳ Pendiente |
+| Segundo proveedor STT: Groq ([ADR-0012](../2-arquitectura/DECISIONS/0012-segundo-proveedor-stt-groq.md), valida ADR-003) | ✅ **Entregado y validado** end-to-end en Windows 11 (2026-07-05) — Groq (`whisper-large-v3-turbo`) mergeado a `develop` (#58); cliente OpenAI-compatible factorizado, key por proveedor, selector + test por proveedor y refresco del widget |
+| Diccionario personal/reemplazos ([ADR-0013](../2-arquitectura/DECISIONS/0013-diccionario-personal.md)) | ⏳ Pendiente |
 | Inglés en la UI | ⏳ Pendiente |
 | Ampliación de la matriz Wayland (compositores wlroots) | ⏳ Pendiente |
 | Descubrimiento dinámico de modelos (`GET /v1/models` por proveedor) | ⏳ Pendiente (post-v1.2.0) |
@@ -125,7 +125,7 @@ quedó construida y firmada, a la espera de publicar el borrador.
 
 ### v2.x
 
-Streaming STT, Event Bus formal con suscriptores dinámicos, capacidad **LLM** (post-procesado del dictado: limpieza, formato, comandos de voz "en modo prompt" — spec anticipada en [ADR-0014](adr/0014-modos-dictado-postprocesado-llm.md)).
+Streaming STT, Event Bus formal con suscriptores dinámicos, capacidad **LLM** (post-procesado del dictado: limpieza, formato, comandos de voz "en modo prompt" — spec anticipada en [ADR-0014](../2-arquitectura/DECISIONS/0014-modos-dictado-postprocesado-llm.md)).
 
 **Descubrimiento dinámico de modelos.** Hoy la lista de modelos por proveedor es estática (curada en `MODELS_BY_PROVIDER` del frontend y los `DEFAULT_MODEL` de cada `providers/*`). Ambos proveedores (OpenAI y Groq, compatible) exponen `GET /v1/models`, que ya se toca parcialmente en `check_auth`. La idea: un comando `list_models(proveedor, capacidad)` que traiga los modelos del endpoint, los **filtre por capacidad** (el endpoint devuelve todos los modelos mezclados, sin etiqueta de capacidad fiable → heurística por nombre o allow-list por capacidad), los **cachee** y **caiga a la lista estática curada** sin red/sin key. Encaja con la arquitectura por capacidades (ADR-0003) y se paga solo al llegar la capacidad **LLM** (mismo endpoint lista los modelos de chat). Priorizado para hacerse junto con, o justo antes de, la capacidad LLM.
 

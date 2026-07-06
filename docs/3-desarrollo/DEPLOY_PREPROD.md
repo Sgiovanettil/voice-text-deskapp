@@ -1,7 +1,7 @@
 # Releasing — VoiceText
 
 Cómo se publica una versión y cómo está configurada la firma. Contexto de decisión:
-`docs/PRD.md` §11.4 (CI/CD), RNF-09, ADR-010.
+`docs/1-fundamentos/PRD.md` §11.4 (CI/CD), RNF-09, ADR-010.
 
 ## Las dos firmas (no confundir)
 

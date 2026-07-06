@@ -1,6 +1,6 @@
 // Sistema de i18n (react-i18next), español por defecto (PRD §17, ratificado
 // por el autor). Las claves de error del backend (`err.*`, ver
-// docs/ARCHITECTURE.md §4.10) viven en el mismo catálogo que las cadenas de
+// docs/2-arquitectura/ARCHITECTURE.md §4.10) viven en el mismo catálogo que las cadenas de
 // UI: el backend envía la clave, el frontend la traduce.
 
 import i18n from "i18next";

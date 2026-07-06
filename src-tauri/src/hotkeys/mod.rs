@@ -1,6 +1,6 @@
 //! Registro del hotkey global. Abstracción con backends por plataforma
 //! (ADR-0004): Windows/X11 vía tauri-plugin-global-shortcut, Wayland vía XDG
-//! Desktop Portal GlobalShortcuts. Ver docs/ARCHITECTURE.md §4.2.
+//! Desktop Portal GlobalShortcuts. Ver docs/2-arquitectura/ARCHITECTURE.md §4.2.
 //!
 //! M1 implementa el backend Windows/X11 (plugin). El backend Wayland/portal y
 //! la degradación por activación externa (`app --dictate`) llegan al retomar

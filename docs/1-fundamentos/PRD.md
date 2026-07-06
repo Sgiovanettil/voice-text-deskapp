@@ -5,7 +5,7 @@
 - **Versión del documento:** 0.3.0
 - **Fecha:** 2026-07-02
 - **Estado:** En revisión
-- **Documento de origen:** [`docs/brief-original.md`](brief-original.md)
+- **Documento de origen:** [`docs/1-fundamentos/brief-original.md`](brief-original.md)
 
 ---
 
@@ -322,7 +322,7 @@ Todo cambio llega a `develop`/`main` mediante Pull Request, sin excepciones (inc
 - **Testing:** unit tests en Rust (core/máquina de estados y eventos, config, providers con HTTP mockeado — wiremock), tests de frontend mínimos (vitest) para settings, smoke test manual documentado por release (checklist); e2e automatizado post-MVP.
 - **Logging:** crate `tracing` + `tracing-appender` (rotación diaria, retención 7 días), nivel configurable, sin PII ni keys en logs (§15).
 - **Errores:** `thiserror` para taxonomía por módulo; en el borde IPC se mapean a códigos + claves i18n de mensajes de usuario; el overlay muestra el mensaje, el log guarda el detalle.
-- **Documentación viva:** README, `docs/ARCHITECTURE.md`, `docs/adr/`, `docs/ROADMAP.md`, CHANGELOG (generado), `docs/DEVELOPMENT.md`. Guía de contribución cuando se abra a colaboradores.
+- **Documentación viva:** README, `docs/2-arquitectura/ARCHITECTURE.md`, `docs/2-arquitectura/DECISIONS/`, `docs/1-fundamentos/ROADMAP.md`, CHANGELOG (generado), `docs/3-desarrollo/SETUP_DEV.md`. Guía de contribución cuando se abra a colaboradores.
 
 ---
 

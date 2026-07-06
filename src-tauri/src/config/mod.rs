@@ -1,5 +1,5 @@
 //! Modelo de settings, versionado (`schema_version`) con migraciones. Ver
-//! docs/ARCHITECTURE.md §4.7.
+//! docs/2-arquitectura/ARCHITECTURE.md §4.7.
 
 use serde::{Deserialize, Serialize};
 
