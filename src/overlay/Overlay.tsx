@@ -12,6 +12,9 @@ type Phase = "idle" | "listening" | "transcribing" | "delivering" | "done" | "er
 /** Cuánto se muestra "Listo"/error antes de volver a reposo. */
 const DWELL_MS = 900;
 
+/** Nombres de marca de los proveedores para el widget (no se traducen). */
+const PROVIDER_NAMES: Record<string, string> = { openai: "OpenAI", groq: "Groq" };
+
 interface OverlayState {
   phase: Phase;
   message: string;
@@ -95,10 +98,25 @@ function Overlay() {
     };
   }, [t]);
 
+  // Proveedor/modelo del widget: se lee al montar y se refresca cuando la
+  // config cambia (evento configChanged que emite el backend en set_settings).
   useEffect(() => {
-    invoke<Settings>("get_settings")
-      .then((s) => setProvider({ name: s.stt.provider, model: s.stt.model }))
-      .catch(() => {});
+    const refresh = () =>
+      invoke<Settings>("get_settings")
+        .then((s) =>
+          setProvider({
+            name: PROVIDER_NAMES[s.stt.provider] ?? s.stt.provider,
+            model: s.stt.model,
+          }),
+        )
+        .catch(() => {});
+    refresh();
+    const unlisten = listen<DomainEvent>("domain-event", ({ payload: ev }) => {
+      if (ev.event === "configChanged") refresh();
+    });
+    return () => {
+      unlisten.then((fn) => fn()).catch(() => {});
+    };
   }, []);
 
   useEffect(() => {

@@ -5,8 +5,11 @@
   "settings": {
     "title": "VoiceText",
     "subtitle": "Settings",
+    "provider": {
+      "label": "Provider"
+    },
     "apiKey": {
-      "label": "OpenAI API key",
+      "label": "{{provider}} API key",
       "placeholder": "sk-…",
       "save": "Save",
       "test": "Test connection",
@@ -14,7 +17,11 @@
       "set": "Configured ({{masked}})",
       "notSet": "Not configured yet",
       "saved": "Key stored securely in the system.",
-      "testOk": "Provider connection verified."
+      "testOk": "Provider connection verified.",
+      "hint": {
+        "openai": "Get your key at platform.openai.com/api-keys.",
+        "groq": "Get your key at console.groq.com/keys."
+      }
     },
     "hotkey": {
       "label": "Dictation shortcut",

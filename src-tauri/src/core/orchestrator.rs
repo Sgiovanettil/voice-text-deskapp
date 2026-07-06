@@ -14,7 +14,7 @@ use crate::core::events::{DomainEvent, OverlayMode, OverlayOutcome};
 use crate::core::state_machine::{ActivationMode, Command, CoreState, StateMachine};
 use crate::delivery::DeliveryMode;
 use crate::ipc::commands::AppState;
-use crate::speech::{SpeechProvider, TranscribeOptions};
+use crate::speech::TranscribeOptions;
 
 /// Intervalo del tick de timeouts (§3: corte de 120 s, reset de Error ~3 s).
 const TICK: Duration = Duration::from_millis(250);
@@ -238,16 +238,20 @@ fn deliver_text(app: &AppHandle, text: &str, result_tx: &Sender<DomainEvent>) {
 /// orquestador como evento — nunca toca la máquina de estados directamente.
 fn start_transcription(app: &AppHandle, audio: AudioData, result_tx: Sender<DomainEvent>) {
     let state = app.state::<AppState>();
-    let (model, language) = {
+    let (provider_id, model, language) = {
         let settings = state.settings.lock().expect("settings lock");
         let lang = match settings.stt.language.as_str() {
             "auto" => None,
             other => Some(other.to_string()),
         };
-        (settings.stt.model.clone(), lang)
+        (
+            settings.stt.provider.clone(),
+            settings.stt.model.clone(),
+            lang,
+        )
     };
 
-    let api_key = match crate::persistence::get_api_key() {
+    let api_key = match crate::persistence::get_api_key(&provider_id) {
         Ok(Some(key)) => key,
         Ok(None) => {
             let _ = result_tx.send(DomainEvent::TranscriptionFailed {
@@ -268,12 +272,12 @@ fn start_transcription(app: &AppHandle, audio: AudioData, result_tx: Sender<Doma
     };
 
     let _ = result_tx.send(DomainEvent::TranscriptionStarted {
-        provider_id: "openai".into(),
+        provider_id: provider_id.clone(),
         model: model.clone(),
     });
 
     tauri::async_runtime::spawn(async move {
-        let provider = crate::providers::openai::OpenAiProvider::new(api_key);
+        let provider = crate::providers::resolve(&provider_id, api_key);
         let opts = TranscribeOptions {
             language,
             model,
@@ -283,7 +287,7 @@ fn start_transcription(app: &AppHandle, audio: AudioData, result_tx: Sender<Doma
             Ok(transcript) => DomainEvent::TranscriptionCompleted {
                 text: transcript.text,
                 latency_ms: transcript.latency.as_millis() as u64,
-                provider_id: "openai".into(),
+                provider_id: provider_id.clone(),
             },
             Err(e) => DomainEvent::TranscriptionFailed {
                 error_key: match &e {
