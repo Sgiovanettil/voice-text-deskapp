@@ -200,6 +200,8 @@ pub fn run() {
             ipc::commands::test_provider,
             ipc::commands::list_input_devices,
             ipc::commands::get_app_state,
+            ipc::commands::start_mic_test,
+            ipc::commands::stop_mic_test,
             updater::check_for_update,
             updater::install_update,
         ])

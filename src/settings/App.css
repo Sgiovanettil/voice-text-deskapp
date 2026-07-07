@@ -465,8 +465,65 @@ button:focus-visible {
   accent-color: var(--core);
 }
 
+/* ===== Prueba de micrófono (calibración de sensibilidad) ===== */
+.mic-test {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.mic-test-toggle.is-on {
+  border-color: var(--core);
+  color: var(--core-hi);
+  box-shadow: inset 0 0 10px color-mix(in srgb, var(--core) 10%, transparent);
+}
+
+.mic-test-live {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 220px;
+  min-width: 200px;
+}
+
+.mic-meter {
+  flex: 1 1 auto;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--field);
+  border: 1px solid var(--edge-soft);
+  overflow: hidden;
+}
+
+.mic-meter-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--core-deep), var(--core));
+  box-shadow: 0 0 10px color-mix(in srgb, var(--core) 40%, transparent);
+  transition: width 0.08s linear;
+}
+
+.mic-verdict {
+  flex: 0 0 auto;
+  font-size: 0.8rem;
+  letter-spacing: 0.02em;
+  color: var(--ink-dim);
+  white-space: nowrap;
+}
+
+.mic-verdict.is-speaking {
+  color: var(--core-hi);
+  text-shadow: 0 0 8px color-mix(in srgb, var(--core) 45%, transparent);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .avatar-heart {
     animation: none;
+  }
+  .mic-meter-fill {
+    transition: none;
   }
 }

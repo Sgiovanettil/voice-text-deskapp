@@ -50,6 +50,14 @@
         "700": "Baja (solo voz firme)"
       }
     },
+    "micTest": {
+      "start": "Probar micrófono",
+      "stop": "Detener prueba",
+      "hint": "Habla como al dictar y observa el medidor: cuando VoiceText reconoce tu voz se enciende «Detectando voz». Ajusta la sensibilidad hasta que se encienda al hablar y se apague en silencio.",
+      "level": "Nivel de entrada",
+      "speaking": "Detectando voz",
+      "silent": "En silencio"
+    },
     "pause": {
       "label": "Pausa antes de cortar",
       "hint": "Cuánto silencio seguido espera antes de cerrar el dictado por sí solo.",
