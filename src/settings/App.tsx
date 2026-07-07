@@ -63,6 +63,12 @@ function App() {
     total: number | null;
   }>({ downloaded: 0, total: null });
   const [updateError, setUpdateError] = useState<string | null>(null);
+  // Prueba de micrófono para calibrar la sensibilidad del VAD: nivel de entrada
+  // en vivo (0..1, ~30 Hz) y veredicto de voz del VAD al umbral configurado. No
+  // graba ni transcribe; el backend descarta el audio al detener.
+  const [micTest, setMicTest] = useState(false);
+  const [micLevel, setMicLevel] = useState(0);
+  const [micSpeaking, setMicSpeaking] = useState(false);
 
   useEffect(() => {
     invoke<Settings>("get_settings")
@@ -136,6 +142,23 @@ function App() {
       unlisten.then((fn) => fn()).catch(() => {});
     };
   }, [t]);
+
+  // Telemetría en vivo de la prueba de micrófono. Solo llega mientras hay una
+  // prueba en curso, así que dejar los listeners montados es inocuo.
+  useEffect(() => {
+    const unlistenLevel = listen<number>("mic-test-level", ({ payload }) => setMicLevel(payload));
+    const unlistenSpeaking = listen<boolean>("mic-test-speaking", ({ payload }) =>
+      setMicSpeaking(payload),
+    );
+    return () => {
+      unlistenLevel.then((fn) => fn()).catch(() => {});
+      unlistenSpeaking.then((fn) => fn()).catch(() => {});
+    };
+  }, []);
+
+  // Corta la prueba si se cierra la ventana (desmontaje) para no dejar el
+  // micrófono capturando en segundo plano.
+  useEffect(() => () => void invoke("stop_mic_test").catch(() => {}), []);
 
   const showError = (e: unknown) => {
     const err = e as IpcError;
@@ -236,6 +259,31 @@ function App() {
       .finally(() => setTesting(false));
   };
 
+  const stopMicTest = () => {
+    setMicTest(false);
+    setMicLevel(0);
+    setMicSpeaking(false);
+    invoke("stop_mic_test").catch(() => {});
+  };
+
+  const startMicTest = () => {
+    setMicLevel(0);
+    setMicSpeaking(false);
+    setMicTest(true);
+    invoke("start_mic_test").catch((e) => {
+      setMicTest(false);
+      showError(e);
+    });
+  };
+
+  // Reinicia la prueba en curso: el backend lee mic y umbral solo al arrancar,
+  // así que tras cambiarlos hay que reabrir la captura para reflejarlos en vivo.
+  const restartMicTest = () => {
+    invoke("stop_mic_test")
+      .then(() => invoke("start_mic_test"))
+      .catch(() => {});
+  };
+
   const saveHotkey = () => patchGeneral({ hotkey: hotkeyInput }, "settings.hotkey.saved");
 
   // Chequeo manual: si hay versión nueva muestra el banner; si no, avisa que la
@@ -293,7 +341,11 @@ function App() {
           <button
             key={id}
             className={section === id ? "nav-item active" : "nav-item"}
-            onClick={() => setSection(id)}
+            onClick={() => {
+              // La prueba de mic vive en "shortcuts"; al irse, se detiene.
+              if (micTest && id !== "shortcuts") stopMicTest();
+              setSection(id);
+            }}
           >
             {t(`settings.nav.${id}`)}
           </button>
@@ -537,9 +589,11 @@ function App() {
                   name="activation-mode"
                   checked={settings?.general.activation_mode !== "toggle"}
                   disabled={!settings}
-                  onChange={() =>
-                    patchGeneral({ activation_mode: "ptt" }, "settings.activation.saved")
-                  }
+                  onChange={() => {
+                    // PTT oculta la sensibilidad; corta cualquier prueba en curso.
+                    if (micTest) stopMicTest();
+                    patchGeneral({ activation_mode: "ptt" }, "settings.activation.saved");
+                  }}
                 />
                 {t("settings.activation.ptt")}
               </label>
@@ -590,9 +644,10 @@ function App() {
                   {t("settings.sensitivity.label")}
                   <select
                     value={String(settings.vad.threshold)}
-                    onChange={(e) =>
-                      patchVad({ threshold: Number(e.target.value) }, "settings.sensitivity.saved")
-                    }
+                    onChange={(e) => {
+                      patchVad({ threshold: Number(e.target.value) }, "settings.sensitivity.saved");
+                      if (micTest) restartMicTest();
+                    }}
                   >
                     {VAD_THRESHOLDS.map((th) => (
                       <option key={th} value={String(th)}>
@@ -606,6 +661,42 @@ function App() {
                     )}
                   </select>
                 </label>
+                <p className="hint">{t("settings.micTest.hint")}</p>
+                <div className="mic-test">
+                  <button
+                    type="button"
+                    className={micTest ? "mic-test-toggle is-on" : "mic-test-toggle"}
+                    onClick={micTest ? stopMicTest : startMicTest}
+                    disabled={!settings}
+                  >
+                    {micTest ? t("settings.micTest.stop") : t("settings.micTest.start")}
+                  </button>
+                  {micTest && (
+                    <div className="mic-test-live">
+                      <div
+                        className="mic-meter"
+                        role="meter"
+                        aria-label={t("settings.micTest.level")}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={Math.round(micLevel * 100)}
+                      >
+                        <span
+                          className="mic-meter-fill"
+                          style={{ width: `${Math.round(micLevel * 100)}%` }}
+                        />
+                      </div>
+                      <span
+                        className={micSpeaking ? "mic-verdict is-speaking" : "mic-verdict"}
+                        aria-live="polite"
+                      >
+                        {micSpeaking
+                          ? t("settings.micTest.speaking")
+                          : t("settings.micTest.silent")}
+                      </span>
+                    </div>
+                  )}
+                </div>
               </section>
             )}
             <section className="group">

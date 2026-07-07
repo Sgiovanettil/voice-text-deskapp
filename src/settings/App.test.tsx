@@ -20,6 +20,7 @@ vi.mock("@tauri-apps/api/core", () => ({
             autostart: false,
             start_minimized: true,
             output_mode: "insert",
+            activation_mode: "toggle",
             overlay_position: null,
           },
           stt: { provider: "openai", model: "gpt-4o-mini-transcribe", language: "auto" },
@@ -31,14 +32,21 @@ vi.mock("@tauri-apps/api/core", () => ({
         return Promise.resolve({ isSet: true, masked: "…1234" });
       case "list_input_devices":
         return Promise.resolve(["Micrófono interno", "USB Mic"]);
+      case "set_settings":
+      case "start_mic_test":
+      case "stop_mic_test":
+        return Promise.resolve();
       default:
         return Promise.reject(new Error(`comando no mockeado: ${cmd}`));
     }
   }),
 }));
 
+import { invoke } from "@tauri-apps/api/core";
 import "../i18n";
 import App from "./App";
+
+const invokeMock = vi.mocked(invoke);
 
 describe("Settings App", () => {
   it("muestra la navegación por secciones (es, idioma por defecto)", () => {
@@ -61,6 +69,41 @@ describe("Settings App", () => {
     fireEvent.click(screen.getByRole("button", { name: "Reconocimiento" }));
     await waitFor(() => {
       expect(screen.getByText(/…1234/)).toBeInTheDocument();
+    });
+  });
+
+  it("arranca y detiene la prueba de micrófono desde Atajos", async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Atajos" }));
+    const start = await screen.findByRole("button", { name: "Probar micrófono" });
+
+    invokeMock.mockClear();
+    fireEvent.click(start);
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith("start_mic_test");
+    });
+    // Con la prueba activa aparecen el medidor y el veredicto de voz.
+    expect(screen.getByRole("meter")).toBeInTheDocument();
+
+    invokeMock.mockClear();
+    fireEvent.click(screen.getByRole("button", { name: "Detener prueba" }));
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith("stop_mic_test");
+    });
+  });
+
+  it("detiene la prueba al salir de la sección Atajos", async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Atajos" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Probar micrófono" }));
+    await waitFor(() => {
+      expect(screen.getByRole("meter")).toBeInTheDocument();
+    });
+
+    invokeMock.mockClear();
+    fireEvent.click(screen.getByRole("button", { name: "General" }));
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith("stop_mic_test");
     });
   });
 });
