@@ -20,6 +20,9 @@ pub struct AppState {
     pub settings: Mutex<Settings>,
     pub core_state: Mutex<CoreState>,
     pub event_tx: Sender<DomainEvent>,
+    /// Prueba de micrófono en curso (calibración del VAD desde settings);
+    /// el audio capturado se descarta al detenerla.
+    pub mic_test: Mutex<Option<crate::audio::Recorder>>,
 }
 
 impl AppState {
@@ -29,6 +32,7 @@ impl AppState {
             settings: Mutex::new(settings),
             core_state: Mutex::new(CoreState::Idle),
             event_tx,
+            mic_test: Mutex::new(None),
         }
     }
 }
@@ -134,6 +138,50 @@ pub fn set_settings(
         },
     );
     Ok(())
+}
+
+/// Prueba de micrófono para calibrar el VAD (settings → Corte por silencio):
+/// captura con el mic y el umbral configurados y emite telemetría en vivo
+/// ("mic-test-level" ~30 Hz y "mic-test-speaking" en cada cambio de estado)
+/// sin grabar ni transcribir nada. El hangover queda fuera de alcance para
+/// que la prueba nunca se corte sola.
+#[tauri::command]
+pub fn start_mic_test(app: tauri::AppHandle, state: State<'_, AppState>) -> Result<(), IpcError> {
+    let mut slot = state.mic_test.lock().expect("mic test lock");
+    if slot.is_some() {
+        return Ok(());
+    }
+    let (threshold, device) = {
+        let s = state.settings.lock().expect("settings lock");
+        (s.vad.threshold, s.audio.input_device.clone())
+    };
+    let level_app = app.clone();
+    let on_level: crate::audio::LevelCallback = Box::new(move |level| {
+        let _ = level_app.emit("mic-test-level", level);
+    });
+    let speaking_app = app;
+    let vad = crate::audio::VadConfig {
+        threshold,
+        silence_hangover_ms: u64::MAX,
+        on_silence: Box::new(|_| {}),
+        on_speaking: Box::new(move |speaking| {
+            let _ = speaking_app.emit("mic-test-speaking", speaking);
+        }),
+    };
+    let recorder = crate::audio::Recorder::start_with_options(Some(on_level), Some(vad), device)
+        .map_err(|e| IpcError::new(e.to_string(), e.error_key()))?;
+    *slot = Some(recorder);
+    Ok(())
+}
+
+/// Detiene la prueba de micrófono descartando el audio capturado. Inocuo si
+/// no hay prueba en curso.
+#[tauri::command]
+pub fn stop_mic_test(state: State<'_, AppState>) {
+    let recorder = state.mic_test.lock().expect("mic test lock").take();
+    if let Some(recorder) = recorder {
+        let _ = recorder.stop();
+    }
 }
 
 #[tauri::command]

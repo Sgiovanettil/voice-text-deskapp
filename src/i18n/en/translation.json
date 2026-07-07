@@ -50,6 +50,14 @@
         "700": "Low (firm voice only)"
       }
     },
+    "micTest": {
+      "start": "Test microphone",
+      "stop": "Stop test",
+      "hint": "Speak as you would when dictating and watch the meter: when VoiceText recognizes your voice, «Detecting voice» lights up. Adjust the sensitivity until it lights up when you talk and turns off in silence.",
+      "level": "Input level",
+      "speaking": "Detecting voice",
+      "silent": "Silent"
+    },
     "pause": {
       "label": "Pause before stopping",
       "hint": "How much continuous silence to wait before the dictation stops on its own.",
