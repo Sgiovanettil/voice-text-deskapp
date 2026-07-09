@@ -18,7 +18,7 @@
 | Documento | Estado |
 | --- | --- |
 | [2-arquitectura/ARCHITECTURE.md](2-arquitectura/ARCHITECTURE.md) — diseño técnico, contrato IPC | ✅ al día |
-| [2-arquitectura/DECISIONS/](2-arquitectura/DECISIONS/) — 15 decisiones de arquitectura (ADRs) | ✅ al día |
+| [2-arquitectura/DECISIONS/](2-arquitectura/DECISIONS/) — 16 decisiones de arquitectura (ADRs) | ✅ al día |
 | [2-arquitectura/spikes/](2-arquitectura/spikes/) — R1/R2/R3 (validados en Windows; Linux pendiente) | ⚠️ parcial |
 
 ## 3 · Desarrollo
