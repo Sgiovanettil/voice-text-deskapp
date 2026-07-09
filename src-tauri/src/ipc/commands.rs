@@ -280,6 +280,7 @@ pub fn get_app_state(state: State<'_, AppState>) -> String {
         CoreState::Idle => "idle",
         CoreState::Recording => "recording",
         CoreState::Transcribing => "transcribing",
+        CoreState::PostProcessing => "postProcessing",
         CoreState::Delivering => "delivering",
         CoreState::Error => "error",
     };

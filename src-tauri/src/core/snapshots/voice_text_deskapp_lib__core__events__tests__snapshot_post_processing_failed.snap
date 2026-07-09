@@ -1,0 +1,12 @@
+---
+source: src/core/events.rs
+expression: "DomainEvent::PostProcessingFailed\n{\n    error_key: \"err.llm.network\".into(), retryable: true, detail:\n    \"timeout after 30s\".into(),\n}"
+---
+{
+  "event": "postProcessingFailed",
+  "payload": {
+    "errorKey": "err.llm.network",
+    "retryable": true,
+    "detail": "timeout after 30s"
+  }
+}

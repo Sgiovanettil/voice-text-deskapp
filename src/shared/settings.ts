@@ -10,6 +10,14 @@ export interface Settings {
   vad: VadSettings;
   audio: AudioSettings;
   pricing: PricingSettings;
+  llm: LlmSettings;
+}
+
+// Proveedor y modelo del post-procesado LLM (ADR-0014); solo aplica cuando
+// general.dictation_mode no es "literal".
+export interface LlmSettings {
+  provider: string;
+  model: string;
 }
 
 // Overrides de tarifas para la estimación de gastos (ADR-0015); los defaults
@@ -30,6 +38,8 @@ export interface GeneralSettings {
   start_minimized: boolean;
   output_mode: string;
   activation_mode: string;
+  // "literal" | "mejorado" | "prompt" (ADR-0014); desconocidos = literal.
+  dictation_mode: string;
   overlay_position: OverlayPos | null;
 }
 

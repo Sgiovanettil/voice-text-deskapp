@@ -9,6 +9,7 @@ import type {
   AudioSettings,
   GeneralSettings,
   IpcError,
+  LlmSettings,
   ModelCatalog,
   Settings,
   SttSettings,
@@ -43,6 +44,8 @@ const SILENCE_PAUSES_MS = [1200, 2000, 3000] as const;
 // (300/500/700) porque los puntos no sirven en claves de i18next.
 const VAD_THRESHOLDS = [0.3, 0.5, 0.7] as const;
 const UI_LANGUAGES = ["es", "en"];
+// Modos de dictado (ADR-0014); ids persistidos tal como los nombra el ADR.
+const DICTATION_MODES = ["literal", "mejorado", "prompt"] as const;
 const SECTIONS: SectionId[] = ["general", "recognition", "shortcuts", "usage", "about"];
 
 function App() {
@@ -96,6 +99,25 @@ function App() {
     if (section === "usage") fetchUsage();
   }, [section, fetchUsage]);
 
+  // Catálogo chat del proveedor del post-procesado LLM (ADR-0014). Es un
+  // catálogo aparte del de STT: el proveedor de IA puede ser otro.
+  const [llmModels, setLlmModels] = useState<ModelCatalog | null>(null);
+
+  const fetchLlmModels = useCallback((forProvider: string) => {
+    invoke<ModelCatalog>("list_models", { provider: forProvider })
+      .then(setLlmModels)
+      .catch(() => setLlmModels(null));
+  }, []);
+
+  const dictationMode = settings?.general.dictation_mode ?? "literal";
+  const llmProvider = settings?.llm.provider ?? "openai";
+
+  useEffect(() => {
+    if (section === "general" && dictationMode !== "literal") {
+      fetchLlmModels(llmProvider);
+    }
+  }, [section, dictationMode, llmProvider, fetchLlmModels]);
+
   const fetchModels = useCallback((forProvider: string) => {
     setModelsLoading(true);
     setModelsError(null);
@@ -146,6 +168,14 @@ function App() {
           break;
         case "transcriptionCompleted":
           setLastTranscript(ev.payload.text);
+          break;
+        // Etapa LLM opcional (ADR-0014). El fallo es solo aviso: el ciclo
+        // sigue con la entrega degradada del texto literal.
+        case "postProcessingStarted":
+          setCycleStatus({ kind: "busy", text: t("status.polishing") });
+          break;
+        case "postProcessingFailed":
+          setCycleStatus({ kind: "error", text: t(ev.payload.errorKey) });
           break;
         case "textDeliveryCompleted":
           setCycleStatus({
@@ -255,6 +285,17 @@ function App() {
       .catch(showError);
   };
 
+  const patchLlm = (patch: Partial<LlmSettings>, okKey: string) => {
+    if (!settings) return;
+    const updated: Settings = { ...settings, llm: { ...settings.llm, ...patch } };
+    invoke("set_settings", { settings: updated })
+      .then(() => {
+        setSettings(updated);
+        setFeedback({ kind: "ok", text: t(okKey) });
+      })
+      .catch(showError);
+  };
+
   // Reset manual del acumulado de gastos (ADR-0015): por proveedor o global.
   const resetUsage = (forProvider?: string) => {
     invoke<UsageLedger>("reset_usage", { provider: forProvider ?? null })
@@ -293,6 +334,12 @@ function App() {
   const monthEntries = usageEntries.filter((e) => e.month === currentMonth);
   const fmtUsd = (v: number) => v.toFixed(4);
   const fmtMin = (s: number) => (s / 60).toFixed(1);
+
+  // Modelos chat para el post-procesado LLM; mismo criterio que el selector
+  // STT: el modelo guardado se conserva como opción extra si falta.
+  const chatModels = llmModels?.chat ?? [];
+  const savedLlmModelMissing =
+    !!settings && settings.llm.model !== "" && !chatModels.includes(settings.llm.model);
 
   // Modelos STT del catálogo vivo; el modelo guardado se conserva como opción
   // extra si el proveedor ya no lo lista (no se pisa config silenciosamente).
@@ -559,6 +606,64 @@ function App() {
                 />
                 {t("settings.outputMode.clipboard")}
               </label>
+            </section>
+
+            <section className="group">
+              <h3>{t("settings.dictation.label")}</h3>
+              {DICTATION_MODES.map((mode) => (
+                <label key={mode} className="check-row">
+                  <input
+                    type="radio"
+                    name="dictation-mode"
+                    checked={dictationMode === mode}
+                    disabled={!settings}
+                    onChange={() =>
+                      patchGeneral({ dictation_mode: mode }, "settings.dictation.saved")
+                    }
+                  />
+                  {t(`settings.dictation.${mode}`)}
+                </label>
+              ))}
+              {dictationMode !== "literal" && (
+                <>
+                  <p className="hint">{t("settings.dictation.costHint")}</p>
+                  <label className="field">
+                    {t("settings.dictation.provider")}
+                    <select
+                      value={llmProvider}
+                      disabled={!settings}
+                      onChange={(e) =>
+                        patchLlm({ provider: e.target.value }, "settings.dictation.saved")
+                      }
+                    >
+                      {PROVIDERS.map((id) => (
+                        <option key={id} value={id}>
+                          {PROVIDER_NAMES[id]}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    {t("settings.dictation.model")}
+                    <select
+                      value={settings?.llm.model ?? ""}
+                      disabled={!settings || (chatModels.length === 0 && !savedLlmModelMissing)}
+                      onChange={(e) =>
+                        patchLlm({ model: e.target.value }, "settings.dictation.saved")
+                      }
+                    >
+                      {savedLlmModelMissing && (
+                        <option value={settings?.llm.model ?? ""}>{settings?.llm.model}</option>
+                      )}
+                      {chatModels.map((m) => (
+                        <option key={m} value={m}>
+                          {m}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </>
+              )}
             </section>
           </>
         )}
