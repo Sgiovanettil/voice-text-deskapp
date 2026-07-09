@@ -108,7 +108,7 @@ quedó construida y firmada, a la espera de publicar el borrador.
 | Diccionario personal/reemplazos ([ADR-0013](../2-arquitectura/DECISIONS/0013-diccionario-personal.md)) | ⏳ Pendiente |
 | Inglés en la UI | ⏳ Pendiente |
 | Ampliación de la matriz Wayland (compositores wlroots) | ⏳ Pendiente |
-| Descubrimiento dinámico de modelos (`GET /v1/models` por proveedor) | 📋 **Plan detallado listo** (PR #71): [PLAN_MODELOS_DINAMICOS.md](../3-desarrollo/PLAN_MODELOS_DINAMICOS.md) — pendiente de implementar |
+| Descubrimiento dinámico de modelos (`GET /v1/models` por proveedor) | ✅ **Implementado** (PR #73, ADR-0016): [PLAN_MODELOS_DINAMICOS.md](../3-desarrollo/PLAN_MODELOS_DINAMICOS.md) — pendiente validación en Windows |
 
 #### Toggle + VAD — detalle de lo entregado (2026-07-05)
 
