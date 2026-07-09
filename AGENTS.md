@@ -1,5 +1,7 @@
 # AGENTS.md
 
+> Estándar base: `~/dev/proyectos/rules/dev_rules.md` (v1.1.0). Aquí solo va lo específico del proyecto.
+
 Guía operativa para trabajar en este repo. Arquitectura, decisiones y alcance: ver
 `docs/1-fundamentos/PRD.md`, `docs/2-arquitectura/ARCHITECTURE.md`, `docs/2-arquitectura/DECISIONS/`. Roadmap: `docs/1-fundamentos/ROADMAP.md`. Setup y
 checklist de smoke test: `docs/3-desarrollo/SETUP_DEV.md`.
