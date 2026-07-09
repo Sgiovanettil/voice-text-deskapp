@@ -1,0 +1,12 @@
+---
+source: src/core/events.rs
+expression: "DomainEvent::PostProcessingCompleted\n{ text: \"Hola, mundo.\".into(), latency_ms: 640, degraded: false, }"
+---
+{
+  "event": "postProcessingCompleted",
+  "payload": {
+    "text": "Hola, mundo.",
+    "latencyMs": 640,
+    "degraded": false
+  }
+}

@@ -56,6 +56,9 @@ Los eventos son el contrato público interno. Tipados, serializables (serde), co
 | `TranscriptionStarted` | core | `provider_id, model` | ✔ |
 | `TranscriptionCompleted` | speech | `text, latency_ms, provider_id` | ✔ |
 | `TranscriptionFailed` | speech | `error_key, retryable, detail` | ✔ |
+| `PostProcessingStarted` | llm | `provider_id, model, mode` | ✔ |
+| `PostProcessingCompleted` | llm | `text, latency_ms, degraded` | ✔ |
+| `PostProcessingFailed` | llm | `error_key, retryable, detail` | ✔ |
 | `TextDeliveryStarted` | core | `mode (insert\|clipboard)` | ✔ |
 | `TextDeliveryCompleted` | delivery | `mode, chars` | ✔ |
 | `TextDeliveryFailed` | delivery | `error_key, fallback_used` | ✔ |
@@ -96,6 +99,11 @@ Reglas:
 - Grabación < 300 ms se descarta como pulsación accidental (a `Idle`, sin llamar al proveedor).
 - Cancelación (v1.x, reservado): `Esc` durante `Recording` → `OverlayClosed(cancelled)`.
 - Todo estado tiene timeout de seguridad (p. ej. `Transcribing` = timeout del proveedor + margen) para no quedar colgado.
+- Etapa opcional `PostProcessing` (ADR-0014): con `general.dictation_mode` ≠ `literal`,
+  `TranscriptionCompleted` transiciona a `PostProcessing` (pasada LLM) y de ahí a `Delivering`
+  vía `PostProcessingCompleted`. `PostProcessingFailed` NO va a `Error`: es solo aviso — el
+  efecto LLM siempre cierra con un `PostProcessingCompleted` degradado que entrega el texto
+  literal (un dictado jamás se pierde por el post-procesado).
 
 ## 4. Módulos
 

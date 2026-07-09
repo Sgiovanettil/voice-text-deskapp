@@ -12,6 +12,7 @@ mod core;
 mod delivery;
 mod hotkeys;
 mod ipc;
+mod llm;
 mod persistence;
 mod providers;
 mod speech;

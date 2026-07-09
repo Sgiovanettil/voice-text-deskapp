@@ -75,6 +75,16 @@
       "clipboard": "Just copy it to the clipboard",
       "saved": "Preference saved."
     },
+    "dictation": {
+      "label": "Dictation mode",
+      "literal": "Literal: insert the transcription as-is",
+      "mejorado": "Improved: AI cleans filler words and punctuation without changing the meaning",
+      "prompt": "Prompt: your voice is an instruction and the AI writes the text",
+      "saved": "Dictation mode saved.",
+      "costHint": "AI modes add one extra call per dictation: some latency and an additional cost. If the AI fails, the literal text is inserted — a dictation is never lost.",
+      "provider": "AI provider",
+      "model": "AI model"
+    },
     "stt": {
       "label": "Transcription",
       "model": "Model",
@@ -153,6 +163,7 @@
     "recording": "Recording… (release the shortcut to transcribe)",
     "processing": "Processing audio…",
     "transcribing": "Transcribing…",
+    "polishing": "Polishing with AI…",
     "delivered": "Text copied to the clipboard ({{chars}} characters) — paste it with Ctrl+V.",
     "lastTranscript": "Last transcription:"
   },
@@ -160,6 +171,7 @@
     "listening": "Listening…",
     "silence": "Silence… wrapping up",
     "transcribing": "Transcribing…",
+    "polishing": "Polishing with AI…",
     "delivering": "Inserting…",
     "done": "Done",
     "idle": "Standing by"
@@ -198,6 +210,12 @@
     },
     "usage": {
       "write": "Could not write the spending record."
+    },
+    "llm": {
+      "auth": "The AI provider's API key is invalid or not configured; the literal text was inserted.",
+      "network": "Could not connect to the AI provider; the literal text was inserted.",
+      "rate": "The AI provider's rate limit was reached; the literal text was inserted.",
+      "provider": "The AI provider returned an error; the literal text was inserted."
     },
     "update": {
       "network": "Couldn't check for updates. Check your connection.",

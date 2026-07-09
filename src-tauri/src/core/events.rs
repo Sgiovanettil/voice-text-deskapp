@@ -73,6 +73,32 @@ pub enum DomainEvent {
         retryable: bool,
         detail: String,
     },
+    /// Etapa opcional de post-procesado LLM (ADR-0014): solo existe cuando
+    /// `general.dictation_mode` no es `literal`. `mode` es el modo vigente
+    /// (`mejorado`/`prompt`).
+    #[serde(rename_all = "camelCase")]
+    PostProcessingStarted {
+        provider_id: String,
+        model: String,
+        mode: String,
+    },
+    /// Fin de la etapa LLM. `degraded: true` = el LLM falló y `text` es el
+    /// literal de la transcripción (degradación segura: nunca se pierde el
+    /// dictado).
+    #[serde(rename_all = "camelCase")]
+    PostProcessingCompleted {
+        text: String,
+        latency_ms: u64,
+        degraded: bool,
+    },
+    /// Aviso de fallo del LLM. No corta el ciclo: siempre lo sigue un
+    /// `PostProcessingCompleted` degradado con el texto literal.
+    #[serde(rename_all = "camelCase")]
+    PostProcessingFailed {
+        error_key: String,
+        retryable: bool,
+        detail: String,
+    },
     TextDeliveryStarted {
         mode: DeliveryMode,
     },
@@ -123,6 +149,7 @@ impl DomainEvent {
             self,
             DomainEvent::RecordingFailed { .. }
                 | DomainEvent::TranscriptionFailed { .. }
+                | DomainEvent::PostProcessingFailed { .. }
                 | DomainEvent::TextDeliveryFailed { .. }
         )
     }
@@ -212,6 +239,33 @@ mod tests {
     }
 
     #[test]
+    fn snapshot_post_processing_started() {
+        insta::assert_json_snapshot!(DomainEvent::PostProcessingStarted {
+            provider_id: "openai".into(),
+            model: "gpt-4o-mini".into(),
+            mode: "mejorado".into(),
+        });
+    }
+
+    #[test]
+    fn snapshot_post_processing_completed() {
+        insta::assert_json_snapshot!(DomainEvent::PostProcessingCompleted {
+            text: "Hola, mundo.".into(),
+            latency_ms: 640,
+            degraded: false,
+        });
+    }
+
+    #[test]
+    fn snapshot_post_processing_failed() {
+        insta::assert_json_snapshot!(DomainEvent::PostProcessingFailed {
+            error_key: "err.llm.network".into(),
+            retryable: true,
+            detail: "timeout after 30s".into(),
+        });
+    }
+
+    #[test]
     fn snapshot_text_delivery_started() {
         insta::assert_json_snapshot!(DomainEvent::TextDeliveryStarted {
             mode: DeliveryMode::Insert
@@ -289,6 +343,12 @@ mod tests {
         assert!(DomainEvent::TextDeliveryFailed {
             error_key: "err.delivery.blocked".into(),
             fallback_used: false,
+        }
+        .is_failure());
+        assert!(DomainEvent::PostProcessingFailed {
+            error_key: "err.llm.network".into(),
+            retryable: true,
+            detail: "x".into(),
         }
         .is_failure());
         // Un evento de éxito no es fallo.

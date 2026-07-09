@@ -25,6 +25,18 @@ export type DomainEvent =
       event: "transcriptionFailed";
       payload: { errorKey: string; retryable: boolean; detail: string };
     }
+  | {
+      event: "postProcessingStarted";
+      payload: { providerId: string; model: string; mode: string };
+    }
+  | {
+      event: "postProcessingCompleted";
+      payload: { text: string; latencyMs: number; degraded: boolean };
+    }
+  | {
+      event: "postProcessingFailed";
+      payload: { errorKey: string; retryable: boolean; detail: string };
+    }
   | { event: "textDeliveryStarted"; payload: { mode: DeliveryMode } }
   | { event: "textDeliveryCompleted"; payload: { mode: DeliveryMode; chars: number } }
   | { event: "textDeliveryFailed"; payload: { errorKey: string; fallbackUsed: boolean } }
