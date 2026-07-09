@@ -1,6 +1,6 @@
 # Plan de implementación — Listado dinámico de modelos por proveedor
 
-- **Estado:** pendiente de implementación · **Fecha del plan:** 2026-07-09
+- **Estado:** implementado (PR #73, 2026-07-09; ADR-0016) · **Fecha del plan:** 2026-07-09
 - **Ejecutor previsto:** agente autónomo (clase Sonnet) sin acceso a la conversación de diseño.
   Este documento es autocontenido: todo lo necesario está aquí. Ante una discrepancia entre este
   plan y el código real (líneas movidas por commits posteriores), **manda el patrón descrito, no
