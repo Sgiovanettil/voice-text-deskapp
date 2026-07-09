@@ -1,0 +1,12 @@
+---
+source: src/core/events.rs
+expression: "DomainEvent::PostProcessingStarted\n{\n    provider_id: \"openai\".into(), model: \"gpt-4o-mini\".into(), mode:\n    \"mejorado\".into(),\n}"
+---
+{
+  "event": "postProcessingStarted",
+  "payload": {
+    "providerId": "openai",
+    "model": "gpt-4o-mini",
+    "mode": "mejorado"
+  }
+}

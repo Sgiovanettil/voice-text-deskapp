@@ -1,5 +1,5 @@
 //! Spike R3 / ADR-0005 — mecanismo de inserción de texto (clipboard + pegado
-//! sintético con restauración). Ver docs/spikes/r3-insercion-texto.md.
+//! sintético con restauración). Ver docs/2-arquitectura/spikes/r3-insercion-texto.md.
 //!
 //! Uso: `cargo run --bin spike-delivery -- "texto a insertar"`. Da 3 s para
 //! hacer click en la app destino antes de copiar+pegar. Correr contra la

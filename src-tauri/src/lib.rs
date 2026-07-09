@@ -1,4 +1,4 @@
-//! Módulos de negocio por capacidad. Ver docs/ARCHITECTURE.md §4 y §8.4.
+//! Módulos de negocio por capacidad. Ver docs/2-arquitectura/ARCHITECTURE.md §4 y §8.4.
 //!
 //! `dead_code` desactivado a nivel de crate: quedan tipos de contrato
 //! (ARCHITECTURE.md) que recién se instancian con el orquestador de M1-PR8.
@@ -12,11 +12,13 @@ mod core;
 mod delivery;
 mod hotkeys;
 mod ipc;
+mod llm;
 mod persistence;
 mod providers;
 mod speech;
 mod tray;
 mod updater;
+mod usage;
 
 use tauri::{Emitter, Manager};
 
@@ -198,8 +200,14 @@ pub fn run() {
             ipc::commands::set_api_key,
             ipc::commands::get_api_key_status,
             ipc::commands::test_provider,
+            ipc::commands::list_models,
             ipc::commands::list_input_devices,
+            ipc::commands::get_usage,
+            ipc::commands::reset_usage,
+            ipc::commands::get_usage_rates,
             ipc::commands::get_app_state,
+            ipc::commands::start_mic_test,
+            ipc::commands::stop_mic_test,
             updater::check_for_update,
             updater::install_update,
         ])

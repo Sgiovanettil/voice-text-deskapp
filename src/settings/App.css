@@ -1,6 +1,7 @@
 /* Ventana de configuración con la piel "materia" (skin v1, mismo lenguaje
-   visual del overlay): fondo de fierro oscuro, sidebar con el orbe como
-   identidad y paneles limpios. Referencia: assets/design/overlay-prototype. */
+   visual del overlay): fierro oscuro con vida — aurora del núcleo detrás del
+   sidebar, tarjetas de vidrio con borde iluminado y controles con glow.
+   Referencia: assets/design/overlay-prototype. */
 
 :root {
   color-scheme: dark;
@@ -12,10 +13,11 @@
   --core-hi: #baffe9;
   --core-deep: #0a6e58;
 
-  --bg: #0c1517;
-  --panel: #101a1c;
+  --bg: #0a1315;
+  --panel: rgba(18, 30, 32, 0.72);
   --edge: #1e2c2e;
   --edge-soft: #223234;
+  --field: #081113;
   --ink: #d6efe6;
   --ink-dim: #7fa89d;
   --ink-faint: #4d6c64;
@@ -42,26 +44,68 @@ body {
 /* ===== Estructura: sidebar + panel ===== */
 .shell {
   display: grid;
-  grid-template-columns: 168px 1fr;
+  grid-template-columns: 188px 1fr;
   height: 100vh;
+  /* Aurora del núcleo + veta metálica diagonal + viñeta */
+  background:
+    radial-gradient(
+      520px 380px at -60px -40px,
+      color-mix(in srgb, var(--core) 9%, transparent) 0%,
+      transparent 70%
+    ),
+    radial-gradient(
+      640px 460px at 105% 110%,
+      color-mix(in srgb, var(--core) 5%, transparent) 0%,
+      transparent 65%
+    ),
+    linear-gradient(160deg, #101c1e 0%, #0b1517 38%, #081113 72%, #0a1416 100%);
 }
 
 .side {
-  padding: 14px 10px;
-  border-right: 1px solid var(--edge);
-  background: linear-gradient(180deg, rgba(10, 22, 22, 0.55), transparent);
+  padding: 16px 12px;
+  border-right: 1px solid color-mix(in srgb, var(--core) 10%, var(--edge));
+  background: linear-gradient(180deg, rgba(10, 24, 24, 0.6), rgba(6, 13, 14, 0.25));
   display: flex;
   flex-direction: column;
   gap: 3px;
+  box-shadow: inset -12px 0 24px -18px rgba(0, 0, 0, 0.9);
+}
+
+/* ===== Marca: el orbe + nombre ===== */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin: 4px 6px 18px;
+}
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+  min-width: 0;
+}
+.brand-name {
+  font-size: 0.92rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--core-hi);
+  text-shadow: 0 0 12px color-mix(in srgb, var(--core) 55%, transparent);
+}
+.brand-sub {
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
 }
 
 /* El orbe como identidad de la app (versión mini de la materia) */
 .avatar {
   position: relative;
-  width: 46px;
-  height: 46px;
+  flex: none;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
-  margin: 6px 8px 16px;
   background: radial-gradient(
     circle at 42% 38%,
     color-mix(in srgb, var(--core) 55%, var(--core-deep)) 0%,
@@ -72,7 +116,8 @@ body {
   box-shadow:
     inset 0 3px 5px -2px rgba(0, 0, 0, 0.9),
     inset 3px 4px 8px rgba(0, 0, 0, 0.5),
-    0 0 18px color-mix(in srgb, var(--core) 40%, transparent);
+    0 0 18px color-mix(in srgb, var(--core) 45%, transparent),
+    0 0 40px color-mix(in srgb, var(--core) 18%, transparent);
 }
 .avatar-heart {
   position: absolute;
@@ -114,24 +159,35 @@ body {
   display: block;
   width: 100%;
   text-align: left;
-  padding: 8px 12px;
-  border-radius: 7px;
+  padding: 9px 13px;
+  border-radius: 8px;
   font-family: inherit;
   font-size: 0.9rem;
+  letter-spacing: 0.02em;
   color: var(--ink-dim);
   cursor: pointer;
+  position: relative;
   transition:
     background 0.2s,
-    color 0.2s;
+    color 0.2s,
+    box-shadow 0.2s;
 }
 .nav-item:hover {
   color: var(--ink);
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.035);
 }
 .nav-item.active {
   color: var(--core-hi);
-  background: color-mix(in srgb, var(--core) 10%, transparent);
-  box-shadow: inset 2px 0 0 var(--core);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--core) 16%, transparent),
+    color-mix(in srgb, var(--core) 5%, transparent) 70%,
+    transparent
+  );
+  box-shadow:
+    inset 2px 0 0 var(--core),
+    0 0 14px color-mix(in srgb, var(--core) 10%, transparent);
+  text-shadow: 0 0 10px color-mix(in srgb, var(--core) 45%, transparent);
 }
 .nav-item:focus-visible {
   outline: 2px solid var(--core);
@@ -140,36 +196,66 @@ body {
 
 /* ===== Panel de contenido ===== */
 .panel {
-  padding: 18px 22px;
+  padding: 22px 26px 26px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 15px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--edge-soft) transparent;
+}
+.panel::-webkit-scrollbar {
+  width: 9px;
+}
+.panel::-webkit-scrollbar-thumb {
+  background: var(--edge-soft);
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: content-box;
 }
 
 .panel-title {
-  margin: 0;
-  font-size: 0.78rem;
+  margin: 0 0 2px;
+  padding-bottom: 10px;
+  font-size: 0.8rem;
   font-weight: 600;
-  letter-spacing: 0.22em;
+  letter-spacing: 0.24em;
   text-transform: uppercase;
   color: var(--core-hi);
-  text-shadow: 0 0 12px color-mix(in srgb, var(--core) 45%, transparent);
+  text-shadow: 0 0 14px color-mix(in srgb, var(--core) 50%, transparent);
+  background: linear-gradient(
+      90deg,
+      var(--core),
+      color-mix(in srgb, var(--core) 25%, transparent) 45%,
+      transparent 80%
+    )
+    left bottom / 100% 1px no-repeat;
 }
 
+/* ===== Tarjetas ===== */
 .group {
-  padding: 14px 16px;
-  border-radius: 9px;
-  background: var(--panel);
-  border: 1px solid var(--edge);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  padding: 16px 18px;
+  border-radius: 11px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.028), transparent 32%), var(--panel);
+  border: 1px solid color-mix(in srgb, var(--core) 7%, var(--edge));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.045),
+    0 8px 20px -14px rgba(0, 0, 0, 0.85);
+  transition: border-color 0.25s;
+}
+.group:hover {
+  border-color: color-mix(in srgb, var(--core) 16%, var(--edge));
 }
 
 .group h3 {
   margin: 0 0 8px;
+  padding-left: 12px;
   font-size: 0.92rem;
   font-weight: 600;
   color: var(--ink);
+  background: linear-gradient(180deg, var(--core-hi), var(--core-deep)) left center / 3px 12px
+    no-repeat;
+  border-radius: 1px;
 }
 
 .hint {
@@ -183,47 +269,54 @@ body {
   gap: 8px;
 }
 
-.row input {
-  flex: 1;
-  min-width: 0;
+/* ===== Campos ===== */
+.row input,
+.field select {
   padding: 8px 12px;
-  border-radius: 6px;
+  border-radius: 7px;
   border: 1px solid var(--edge-soft);
   font-family: inherit;
   font-size: 0.88rem;
-  background-color: #0a1517;
-  color: inherit;
+  background-color: var(--field);
+  color: var(--ink);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.35);
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
 }
-.row input:focus-visible {
+.row input {
+  flex: 1;
+  min-width: 0;
+}
+.row input:hover:not(:disabled),
+.field select:hover:not(:disabled) {
+  border-color: #2f4547;
+}
+.row input:focus-visible,
+.field select:focus-visible {
   outline: none;
   border-color: var(--core-deep);
+  box-shadow:
+    inset 0 2px 6px rgba(0, 0, 0, 0.35),
+    0 0 0 3px color-mix(in srgb, var(--core) 14%, transparent);
 }
 
 .field {
   display: grid;
-  grid-template-columns: 120px 1fr;
+  grid-template-columns: 128px 1fr;
   align-items: center;
   gap: 12px;
   padding: 4px 0;
   font-size: 0.84rem;
   color: var(--ink-dim);
 }
-
 .field select {
-  padding: 8px 12px;
-  border-radius: 6px;
-  border: 1px solid var(--edge-soft);
-  font-family: inherit;
   font-size: 0.86rem;
-  background-color: #0a1517;
-  color: var(--ink);
-}
-.field select:hover:not(:disabled) {
-  border-color: #2f4547;
-}
-.field select:focus-visible {
-  outline: none;
-  border-color: var(--core-deep);
+  appearance: none;
+  padding-right: 32px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%237fa89d' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
 }
 
 .check-row {
@@ -233,44 +326,60 @@ body {
   padding: 5px 0;
   font-size: 0.88rem;
   cursor: pointer;
+  border-radius: 6px;
+  transition: color 0.2s;
+}
+.check-row:hover {
+  color: var(--core-hi);
 }
 .check-row input {
   accent-color: var(--core);
+  width: 15px;
+  height: 15px;
 }
 
+/* ===== Botones ===== */
 button {
-  padding: 8px 14px;
-  border-radius: 6px;
-  border: 1px solid #2a3d40;
-  background-color: #142225;
-  color: inherit;
+  padding: 8px 15px;
+  border-radius: 7px;
+  border: 1px solid color-mix(in srgb, var(--core) 22%, var(--edge-soft));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 45%), #13282a;
+  color: var(--ink);
   font-family: inherit;
   font-size: 0.86rem;
+  letter-spacing: 0.02em;
   cursor: pointer;
   transition:
     border-color 0.2s,
-    color 0.2s;
+    color 0.2s,
+    box-shadow 0.2s;
 }
-
 button:hover:not(:disabled) {
-  border-color: var(--core-deep);
+  border-color: var(--core);
   color: var(--core-hi);
+  box-shadow:
+    0 0 14px color-mix(in srgb, var(--core) 22%, transparent),
+    inset 0 0 10px color-mix(in srgb, var(--core) 8%, transparent);
+  text-shadow: 0 0 8px color-mix(in srgb, var(--core) 45%, transparent);
 }
-
+button:active:not(:disabled) {
+  transform: translateY(1px);
+}
 button:disabled {
   opacity: 0.45;
   cursor: default;
 }
-
 button:focus-visible {
   outline: 2px solid var(--core);
   outline-offset: 1px;
 }
 
+/* ===== Feedback y estado ===== */
 .feedback-ok {
   color: #6fe8b8;
   margin: 0;
   font-size: 0.86rem;
+  text-shadow: 0 0 10px color-mix(in srgb, #6fe8b8 35%, transparent);
 }
 
 .feedback-error {
@@ -303,25 +412,29 @@ button:focus-visible {
 
 .transcript {
   margin: 0;
-  padding: 8px 12px;
-  border-radius: 6px;
-  background-color: #0a1416;
+  padding: 9px 12px;
+  border-radius: 7px;
+  background-color: var(--field);
   border: 1px solid var(--edge);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.3);
   font-size: 0.88rem;
   white-space: pre-wrap;
   word-break: break-word;
 }
 
+/* ===== Banner de actualización ===== */
 .update-banner {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin-bottom: 20px;
+  margin-bottom: 8px;
   padding: 14px 16px;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--core) 8%, var(--panel));
+  border-radius: 11px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 40%),
+    color-mix(in srgb, var(--core) 8%, var(--panel));
   border: 1px solid color-mix(in srgb, var(--core) 45%, var(--edge));
-  box-shadow: 0 0 18px color-mix(in srgb, var(--core) 18%, transparent);
+  box-shadow: 0 0 22px color-mix(in srgb, var(--core) 18%, transparent);
 }
 
 .update-title {
@@ -352,8 +465,112 @@ button:focus-visible {
   accent-color: var(--core);
 }
 
+/* ===== Prueba de micrófono (calibración de sensibilidad) ===== */
+.mic-test {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.mic-test-toggle.is-on {
+  border-color: var(--core);
+  color: var(--core-hi);
+  box-shadow: inset 0 0 10px color-mix(in srgb, var(--core) 10%, transparent);
+}
+
+.mic-test-live {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 220px;
+  min-width: 200px;
+}
+
+.mic-meter {
+  flex: 1 1 auto;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--field);
+  border: 1px solid var(--edge-soft);
+  overflow: hidden;
+}
+
+.mic-meter-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--core-deep), var(--core));
+  box-shadow: 0 0 10px color-mix(in srgb, var(--core) 40%, transparent);
+  transition: width 0.08s linear;
+}
+
+.mic-verdict {
+  flex: 0 0 auto;
+  font-size: 0.8rem;
+  letter-spacing: 0.02em;
+  color: var(--ink-dim);
+  white-space: nowrap;
+}
+
+.mic-verdict.is-speaking {
+  color: var(--core-hi);
+  text-shadow: 0 0 8px color-mix(in srgb, var(--core) 45%, transparent);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .avatar-heart {
     animation: none;
   }
+  .mic-meter-fill {
+    transition: none;
+  }
+}
+
+/* ===== Pantalla de gastos (ADR-0015) ===== */
+.usage-provider {
+  margin-bottom: 10px;
+}
+
+.usage-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 5px 0;
+  font-size: 0.86rem;
+  color: var(--ink-dim);
+  border-bottom: 1px solid var(--edge);
+}
+
+.usage-row:last-child {
+  border-bottom: none;
+}
+
+.usage-row-head {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.usage-model {
+  font-family: ui-monospace, monospace;
+  font-size: 0.8rem;
+}
+
+.usage-rate {
+  grid-template-columns: 1fr 128px;
+  font-family: ui-monospace, monospace;
+  font-size: 0.8rem;
+}
+
+.usage-rate input {
+  padding: 6px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--edge-soft);
+  font-family: inherit;
+  font-size: 0.84rem;
+  background-color: var(--field);
+  color: var(--ink);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.35);
 }

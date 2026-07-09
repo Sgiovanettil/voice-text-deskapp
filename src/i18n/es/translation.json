@@ -36,17 +36,64 @@
       "toggle": "Presionar una vez; se corta solo al detectar silencio",
       "saved": "Modo de activación guardado."
     },
+    "autocut": {
+      "label": "Corte por silencio"
+    },
+    "sensitivity": {
+      "label": "Sensibilidad de voz",
+      "hint": "Si al bajar la voz se corta el dictado, sube la sensibilidad: la voz suave seguirá contando como habla.",
+      "saved": "Sensibilidad guardada.",
+      "custom": "Personalizada ({{value}})",
+      "options": {
+        "300": "Alta (capta voz baja)",
+        "500": "Media",
+        "700": "Baja (solo voz firme)"
+      }
+    },
+    "micTest": {
+      "start": "Probar micrófono",
+      "stop": "Detener prueba",
+      "hint": "Habla como al dictar y observa el medidor: cuando VoiceText reconoce tu voz se enciende «Detectando voz». Ajusta la sensibilidad hasta que se encienda al hablar y se apague en silencio.",
+      "level": "Nivel de entrada",
+      "speaking": "Detectando voz",
+      "silent": "En silencio"
+    },
+    "pause": {
+      "label": "Pausa antes de cortar",
+      "hint": "Cuánto silencio seguido espera antes de cerrar el dictado por sí solo.",
+      "saved": "Pausa guardada.",
+      "custom": "Personalizada ({{seconds}} s)",
+      "options": {
+        "1200": "Corta (1,2 s)",
+        "2000": "Media (2 s)",
+        "3000": "Larga (3 s)"
+      }
+    },
     "outputMode": {
       "label": "Qué hacer con el texto",
       "insert": "Insertarlo donde está el cursor",
       "clipboard": "Solo copiarlo al portapapeles",
       "saved": "Preferencia guardada."
     },
+    "dictation": {
+      "label": "Modo de dictado",
+      "literal": "Literal: insertar la transcripción tal cual",
+      "mejorado": "Mejorado: la IA limpia muletillas y puntuación sin cambiar el sentido",
+      "prompt": "Prompt: tu voz es una instrucción y la IA redacta el texto",
+      "saved": "Modo de dictado guardado.",
+      "costHint": "Los modos con IA agregan una llamada extra por dictado: algo de latencia y un costo adicional. Si la IA falla, se inserta el texto literal — el dictado nunca se pierde.",
+      "provider": "Proveedor de IA",
+      "model": "Modelo de IA"
+    },
     "stt": {
       "label": "Transcripción",
       "model": "Modelo",
       "language": "Idioma del dictado",
       "saved": "Preferencia de transcripción guardada.",
+      "modelsRefresh": "Actualizar modelos",
+      "modelsLoading": "Cargando modelos…",
+      "modelsEmpty": "El proveedor no devolvió modelos compatibles.",
+      "modelUnavailable": "{{model}} (no disponible)",
       "languages": {
         "auto": "Detección automática",
         "es": "Español",
@@ -78,7 +125,23 @@
       "general": "General",
       "recognition": "Reconocimiento",
       "shortcuts": "Atajos",
+      "usage": "Gastos",
       "about": "Acerca de"
+    },
+    "usage": {
+      "currentMonth": "Mes en curso ({{month}})",
+      "disclaimer": "Estimación local calculada con la duración del audio y las tarifas de esta pantalla — no es la factura del proveedor.",
+      "empty": "Aún no hay dictados registrados.",
+      "cost": "US$ {{cost}}",
+      "detail": "{{count}} dictados · {{minutes}} min · US$ {{cost}}",
+      "detailTotal": "{{minutes}} min · US$ {{cost}}",
+      "history": "Histórico total",
+      "resetProvider": "Reiniciar",
+      "resetAll": "Reiniciar todo el acumulado",
+      "resetDone": "Acumulado de gastos reiniciado.",
+      "rates": "Tarifas (USD por minuto de audio)",
+      "ratesHint": "Edita una tarifa si el proveedor cambió sus precios; aplica a los dictados siguientes, el histórico no se recalcula.",
+      "rateSaved": "Tarifa guardada."
     },
     "about": {
       "version": "Versión"
@@ -100,6 +163,7 @@
     "recording": "Grabando… (suelta el atajo para transcribir)",
     "processing": "Procesando audio…",
     "transcribing": "Transcribiendo…",
+    "polishing": "Puliendo con IA…",
     "delivered": "Texto copiado al portapapeles ({{chars}} caracteres) — pégalo con Ctrl+V.",
     "lastTranscript": "Última transcripción:"
   },
@@ -107,6 +171,7 @@
     "listening": "Escuchando…",
     "silence": "En silencio… cerrando",
     "transcribing": "Transcribiendo…",
+    "polishing": "Puliendo con IA…",
     "delivering": "Insertando…",
     "done": "Listo",
     "idle": "En espera"
@@ -139,6 +204,18 @@
     },
     "config": {
       "invalid": "La configuración guardada no es válida."
+    },
+    "models": {
+      "noKey": "Guarda tu clave de API para ver los modelos disponibles."
+    },
+    "usage": {
+      "write": "No se pudo escribir el registro de gastos."
+    },
+    "llm": {
+      "auth": "La clave de API del proveedor de IA no es válida o no está configurada; se insertó el texto literal.",
+      "network": "No se pudo conectar con el proveedor de IA; se insertó el texto literal.",
+      "rate": "Se alcanzó el límite de solicitudes del proveedor de IA; se insertó el texto literal.",
+      "provider": "El proveedor de IA devolvió un error; se insertó el texto literal."
     },
     "update": {
       "network": "No se pudo comprobar si hay actualizaciones. Revisa tu conexión.",

@@ -1,4 +1,4 @@
-//! Máquina de estados del ciclo de dictado. Ver docs/ARCHITECTURE.md §3.
+//! Máquina de estados del ciclo de dictado. Ver docs/2-arquitectura/ARCHITECTURE.md §3.
 //!
 //! Pura y sin I/O: recibe eventos de dominio (y ticks de reloj) y devuelve el
 //! comando que el orquestador debe ejecutar contra audio/speech/delivery. El
@@ -12,8 +12,36 @@ pub enum CoreState {
     Idle,
     Recording,
     Transcribing,
+    /// Etapa LLM opcional (ADR-0014); solo se pisa con `dictation_mode`
+    /// distinto de `literal`.
+    PostProcessing,
     Delivering,
     Error,
+}
+
+/// Modo de dictado (ADR-0014). `Literal` es el comportamiento original
+/// (STT → inserción tal cual); los otros dos agregan la pasada LLM.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum DictationMode {
+    #[default]
+    Literal,
+    /// Limpieza con prompt fijo versionado: muletillas, puntuación,
+    /// redacción — sin cambiar el significado.
+    Mejorado,
+    /// La voz es una instrucción; el LLM genera el texto a insertar.
+    Prompt,
+}
+
+impl DictationMode {
+    /// Mapea el valor persistido en settings; desconocidos caen a literal
+    /// (nunca activar el LLM por accidente).
+    pub fn from_setting(value: &str) -> Self {
+        match value {
+            "mejorado" => Self::Mejorado,
+            "prompt" => Self::Prompt,
+            _ => Self::Literal,
+        }
+    }
 }
 
 /// Modo de activación del ciclo (ADR-0011). En `Ptt` la grabación vive
@@ -48,6 +76,8 @@ pub enum Command {
     StopRecording,
     /// Enviar el audio capturado al proveedor STT.
     StartTranscription,
+    /// Pasar la transcripción por el LLM (ADR-0014, modos mejorado/prompt).
+    StartPostProcessing { text: String },
     /// Entregar el texto transcrito (clipboard/inserción).
     DeliverText { text: String },
     /// Nada que hacer (evento ignorado o transición sin efecto).
@@ -70,6 +100,9 @@ pub struct StateMachine {
     /// settings antes de cada evento (cambiarlo a mitad de ciclo es seguro:
     /// solo altera qué disparadores cortan la grabación).
     mode: ActivationMode,
+    /// Modo de dictado vigente (ADR-0014); el orquestador lo refresca junto
+    /// con el de activación. Decide si la transcripción pasa por el LLM.
+    dictation_mode: DictationMode,
 }
 
 impl StateMachine {
@@ -78,6 +111,7 @@ impl StateMachine {
             state: CoreState::Idle,
             entered_at_ms: 0,
             mode: ActivationMode::Ptt,
+            dictation_mode: DictationMode::Literal,
         }
     }
 
@@ -87,6 +121,10 @@ impl StateMachine {
 
     pub fn set_mode(&mut self, mode: ActivationMode) {
         self.mode = mode;
+    }
+
+    pub fn set_dictation_mode(&mut self, mode: DictationMode) {
+        self.dictation_mode = mode;
     }
 
     fn transition(&mut self, next: CoreState, now_ms: u64) {
@@ -137,13 +175,29 @@ impl StateMachine {
                 Command::None
             }
             (CoreState::Transcribing, DomainEvent::TranscriptionCompleted { text, .. }) => {
-                self.transition(CoreState::Delivering, now_ms);
-                Command::DeliverText { text: text.clone() }
+                match self.dictation_mode {
+                    DictationMode::Literal => {
+                        self.transition(CoreState::Delivering, now_ms);
+                        Command::DeliverText { text: text.clone() }
+                    }
+                    // Modos LLM (ADR-0014): pasada extra antes de entregar.
+                    DictationMode::Mejorado | DictationMode::Prompt => {
+                        self.transition(CoreState::PostProcessing, now_ms);
+                        Command::StartPostProcessing { text: text.clone() }
+                    }
+                }
             }
             (CoreState::Transcribing, DomainEvent::TranscriptionFailed { .. }) => {
                 self.transition(CoreState::Error, now_ms);
                 Command::None
             }
+            // La etapa LLM siempre termina en Completed (ante fallo llega
+            // degradado con el texto literal); Failed es solo aviso.
+            (CoreState::PostProcessing, DomainEvent::PostProcessingCompleted { text, .. }) => {
+                self.transition(CoreState::Delivering, now_ms);
+                Command::DeliverText { text: text.clone() }
+            }
+            (CoreState::PostProcessing, DomainEvent::PostProcessingFailed { .. }) => Command::None,
             (CoreState::Delivering, DomainEvent::TextDeliveryCompleted { .. }) => {
                 self.transition(CoreState::Idle, now_ms);
                 Command::None
@@ -393,6 +447,106 @@ mod tests {
         );
         assert_eq!(ActivationMode::from_setting("ptt"), ActivationMode::Ptt);
         assert_eq!(ActivationMode::from_setting("otro"), ActivationMode::Ptt);
+    }
+
+    #[test]
+    fn modo_mejorado_pasa_por_post_procesado() {
+        let mut sm = StateMachine::new();
+        sm.set_dictation_mode(DictationMode::Mejorado);
+        sm.handle(&hotkey_pressed(), 0);
+        sm.handle(&recording_stopped(2_000), 2_000);
+
+        assert_eq!(
+            sm.handle(&transcription_completed("eh… hola mundo"), 3_000),
+            Command::StartPostProcessing {
+                text: "eh… hola mundo".into()
+            }
+        );
+        assert_eq!(sm.state(), CoreState::PostProcessing);
+
+        assert_eq!(
+            sm.handle(
+                &DomainEvent::PostProcessingCompleted {
+                    text: "Hola, mundo.".into(),
+                    latency_ms: 640,
+                    degraded: false,
+                },
+                4_000,
+            ),
+            Command::DeliverText {
+                text: "Hola, mundo.".into()
+            }
+        );
+        assert_eq!(sm.state(), CoreState::Delivering);
+    }
+
+    #[test]
+    fn fallo_del_llm_no_corta_el_ciclo_y_entrega_el_degradado() {
+        let mut sm = StateMachine::new();
+        sm.set_dictation_mode(DictationMode::Prompt);
+        sm.handle(&hotkey_pressed(), 0);
+        sm.handle(&recording_stopped(2_000), 2_000);
+        sm.handle(&transcription_completed("redacta un saludo"), 3_000);
+        assert_eq!(sm.state(), CoreState::PostProcessing);
+
+        // El aviso de fallo no transiciona: la degradación llega después
+        // como PostProcessingCompleted con el texto literal.
+        assert_eq!(
+            sm.handle(
+                &DomainEvent::PostProcessingFailed {
+                    error_key: "err.llm.network".into(),
+                    retryable: true,
+                    detail: "timeout".into(),
+                },
+                4_000,
+            ),
+            Command::None
+        );
+        assert_eq!(sm.state(), CoreState::PostProcessing);
+
+        assert_eq!(
+            sm.handle(
+                &DomainEvent::PostProcessingCompleted {
+                    text: "redacta un saludo".into(),
+                    latency_ms: 30_000,
+                    degraded: true,
+                },
+                34_000,
+            ),
+            Command::DeliverText {
+                text: "redacta un saludo".into()
+            }
+        );
+        assert_eq!(sm.state(), CoreState::Delivering);
+    }
+
+    #[test]
+    fn modo_literal_no_pasa_por_el_llm() {
+        let mut sm = StateMachine::new();
+        sm.set_dictation_mode(DictationMode::Literal);
+        sm.handle(&hotkey_pressed(), 0);
+        sm.handle(&recording_stopped(2_000), 2_000);
+        assert_eq!(
+            sm.handle(&transcription_completed("hola"), 3_000),
+            Command::DeliverText {
+                text: "hola".into()
+            }
+        );
+        assert_eq!(sm.state(), CoreState::Delivering);
+    }
+
+    #[test]
+    fn dictation_mode_from_setting_cae_a_literal() {
+        assert_eq!(
+            DictationMode::from_setting("mejorado"),
+            DictationMode::Mejorado
+        );
+        assert_eq!(DictationMode::from_setting("prompt"), DictationMode::Prompt);
+        assert_eq!(
+            DictationMode::from_setting("literal"),
+            DictationMode::Literal
+        );
+        assert_eq!(DictationMode::from_setting("otro"), DictationMode::Literal);
     }
 
     #[test]

@@ -24,11 +24,11 @@ Rust vía [rustup](https://rustup.rs/), Node ≥ 22 y npm ≥ 11 igual que en Wi
 
 ### Linux (Wayland)
 
-Los spikes R1 (hotkey) y parte de R3 (inserción de texto) dependen de `xdg-desktop-portal` con soporte para `GlobalShortcuts` y `RemoteDesktop`. Verificar versión instalada: `xdg-desktop-portal --version` (ver notas en `docs/spikes/r1-hotkey-portal.md` tras ejecutar el spike).
+Los spikes R1 (hotkey) y parte de R3 (inserción de texto) dependen de `xdg-desktop-portal` con soporte para `GlobalShortcuts` y `RemoteDesktop`. Verificar versión instalada: `xdg-desktop-portal --version` (ver notas en `docs/2-arquitectura/spikes/r1-hotkey-portal.md` tras ejecutar el spike).
 
 ## Comandos
 
-Ver también [`AGENTS.md`](../AGENTS.md) para el resumen rápido. Detalle:
+Ver también [`AGENTS.md`](../../AGENTS.md) para el resumen rápido. Detalle:
 
 ```bash
 # Frontend
@@ -53,7 +53,7 @@ npm run tauri build
 
 ## Spikes de riesgo (M0)
 
-Los 3 binarios compilan en CI pero **no se ejecutan ahí** (no hay GUI/D-Bus en los runners). Deben correrse a mano en hardware real y documentar el resultado en `docs/spikes/`.
+Los 3 binarios compilan en CI pero **no se ejecutan ahí** (no hay GUI/D-Bus en los runners). Deben correrse a mano en hardware real y documentar el resultado en `docs/2-arquitectura/spikes/`.
 
 ### Opción A — descargar el binario ya compilado (recomendado, sin instalar nada)
 
@@ -79,11 +79,11 @@ cargo run --manifest-path src-tauri/Cargo.toml --bin spike-hotkey-portal   # sol
 
 Ver protocolo detallado en cada plantilla:
 
-- [`docs/spikes/r1-hotkey-portal.md`](spikes/r1-hotkey-portal.md)
-- [`docs/spikes/r2-overlay-sin-foco.md`](spikes/r2-overlay-sin-foco.md)
-- [`docs/spikes/r3-insercion-texto.md`](spikes/r3-insercion-texto.md)
+- [`docs/2-arquitectura/spikes/r1-hotkey-portal.md`](../2-arquitectura/spikes/r1-hotkey-portal.md)
+- [`docs/2-arquitectura/spikes/r2-overlay-sin-foco.md`](../2-arquitectura/spikes/r2-overlay-sin-foco.md)
+- [`docs/2-arquitectura/spikes/r3-insercion-texto.md`](../2-arquitectura/spikes/r3-insercion-texto.md)
 
-Los resultados de R3 resuelven [ADR-0005](adr/0005-mecanismo-insercion-texto.md) (pasa de "Propuesta" a "Aceptada"); los de R1/R2 confirman o ajustan [ADR-0004](adr/0004-estrategia-linux-x11-wayland.md).
+Los resultados de R3 resuelven [ADR-0005](../2-arquitectura/DECISIONS/0005-mecanismo-insercion-texto.md) (pasa de "Propuesta" a "Aceptada"); los de R1/R2 confirman o ajustan [ADR-0004](../2-arquitectura/DECISIONS/0004-estrategia-linux-x11-wayland.md).
 
 ## Smoke test manual (checklist por release)
 
@@ -109,7 +109,7 @@ gh secret set TAURI_SIGNING_PRIVATE_KEY_PASSWORD --repo Sgiovanettil/voice-text-
 
 ## Flujo de trabajo (Git Flow)
 
-Ver [PRD §11](PRD.md#11-ingeniería-y-proceso) para el detalle completo. Resumen operativo:
+Ver [PRD §11](../1-fundamentos/PRD.md#11-ingeniería-y-proceso) para el detalle completo. Resumen operativo:
 
 ```bash
 git checkout develop && git pull

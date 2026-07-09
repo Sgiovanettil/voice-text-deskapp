@@ -36,17 +36,64 @@
       "toggle": "Press once; stops on its own when silence is detected",
       "saved": "Activation mode saved."
     },
+    "autocut": {
+      "label": "Silence auto-stop"
+    },
+    "sensitivity": {
+      "label": "Voice sensitivity",
+      "hint": "If dictation cuts off when you lower your voice, raise the sensitivity: soft speech will still count as talking.",
+      "saved": "Sensitivity saved.",
+      "custom": "Custom ({{value}})",
+      "options": {
+        "300": "High (picks up soft voice)",
+        "500": "Medium",
+        "700": "Low (firm voice only)"
+      }
+    },
+    "micTest": {
+      "start": "Test microphone",
+      "stop": "Stop test",
+      "hint": "Speak as you would when dictating and watch the meter: when VoiceText recognizes your voice, «Detecting voice» lights up. Adjust the sensitivity until it lights up when you talk and turns off in silence.",
+      "level": "Input level",
+      "speaking": "Detecting voice",
+      "silent": "Silent"
+    },
+    "pause": {
+      "label": "Pause before stopping",
+      "hint": "How much continuous silence to wait before the dictation stops on its own.",
+      "saved": "Pause saved.",
+      "custom": "Custom ({{seconds}} s)",
+      "options": {
+        "1200": "Short (1.2 s)",
+        "2000": "Medium (2 s)",
+        "3000": "Long (3 s)"
+      }
+    },
     "outputMode": {
       "label": "What to do with the text",
       "insert": "Insert it where the cursor is",
       "clipboard": "Just copy it to the clipboard",
       "saved": "Preference saved."
     },
+    "dictation": {
+      "label": "Dictation mode",
+      "literal": "Literal: insert the transcription as-is",
+      "mejorado": "Improved: AI cleans filler words and punctuation without changing the meaning",
+      "prompt": "Prompt: your voice is an instruction and the AI writes the text",
+      "saved": "Dictation mode saved.",
+      "costHint": "AI modes add one extra call per dictation: some latency and an additional cost. If the AI fails, the literal text is inserted — a dictation is never lost.",
+      "provider": "AI provider",
+      "model": "AI model"
+    },
     "stt": {
       "label": "Transcription",
       "model": "Model",
       "language": "Dictation language",
       "saved": "Transcription preference saved.",
+      "modelsRefresh": "Refresh models",
+      "modelsLoading": "Loading models…",
+      "modelsEmpty": "The provider returned no compatible models.",
+      "modelUnavailable": "{{model}} (unavailable)",
       "languages": {
         "auto": "Automatic detection",
         "es": "Spanish",
@@ -78,7 +125,23 @@
       "general": "General",
       "recognition": "Recognition",
       "shortcuts": "Shortcuts",
+      "usage": "Spending",
       "about": "About"
+    },
+    "usage": {
+      "currentMonth": "Current month ({{month}})",
+      "disclaimer": "Local estimate computed from audio duration and the rates on this screen — it is not the provider's invoice.",
+      "empty": "No dictations recorded yet.",
+      "cost": "US$ {{cost}}",
+      "detail": "{{count}} dictations · {{minutes}} min · US$ {{cost}}",
+      "detailTotal": "{{minutes}} min · US$ {{cost}}",
+      "history": "All-time total",
+      "resetProvider": "Reset",
+      "resetAll": "Reset all accumulated data",
+      "resetDone": "Spending data reset.",
+      "rates": "Rates (USD per audio minute)",
+      "ratesHint": "Edit a rate if the provider changed its prices; it applies to the next dictations, history is not recalculated.",
+      "rateSaved": "Rate saved."
     },
     "about": {
       "version": "Version"
@@ -100,6 +163,7 @@
     "recording": "Recording… (release the shortcut to transcribe)",
     "processing": "Processing audio…",
     "transcribing": "Transcribing…",
+    "polishing": "Polishing with AI…",
     "delivered": "Text copied to the clipboard ({{chars}} characters) — paste it with Ctrl+V.",
     "lastTranscript": "Last transcription:"
   },
@@ -107,6 +171,7 @@
     "listening": "Listening…",
     "silence": "Silence… wrapping up",
     "transcribing": "Transcribing…",
+    "polishing": "Polishing with AI…",
     "delivering": "Inserting…",
     "done": "Done",
     "idle": "Standing by"
@@ -139,6 +204,18 @@
     },
     "config": {
       "invalid": "The saved configuration is invalid."
+    },
+    "models": {
+      "noKey": "Save your API key to see the available models."
+    },
+    "usage": {
+      "write": "Could not write the spending record."
+    },
+    "llm": {
+      "auth": "The AI provider's API key is invalid or not configured; the literal text was inserted.",
+      "network": "Could not connect to the AI provider; the literal text was inserted.",
+      "rate": "The AI provider's rate limit was reached; the literal text was inserted.",
+      "provider": "The AI provider returned an error; the literal text was inserted."
     },
     "update": {
       "network": "Couldn't check for updates. Check your connection.",

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -9,14 +9,18 @@ import type {
   AudioSettings,
   GeneralSettings,
   IpcError,
+  LlmSettings,
+  ModelCatalog,
   Settings,
   SttSettings,
+  UsageLedger,
+  VadSettings,
 } from "../shared/settings";
 import "./App.css";
 
 type Feedback = { kind: "ok" | "error"; text: string } | null;
 type CycleStatus = { kind: "idle" | "busy" | "ok" | "error"; text: string };
-type SectionId = "general" | "recognition" | "shortcuts" | "about";
+type SectionId = "general" | "recognition" | "shortcuts" | "usage" | "about";
 type UpdatePhase = "idle" | "checking" | "available" | "downloading" | "error";
 
 // Opciones fijas expuestas en la UI. Los ids de proveedor/modelo son
@@ -24,15 +28,25 @@ type UpdatePhase = "idle" | "checking" | "available" | "downloading" | "error";
 const PROVIDERS = ["openai", "groq"] as const;
 // Nombres de marca de cada proveedor (no se traducen).
 const PROVIDER_NAMES: Record<string, string> = { openai: "OpenAI", groq: "Groq" };
-// Modelos por proveedor; el primero es el default al elegir el proveedor
-// (espejo de providers::default_model en el backend).
-const MODELS_BY_PROVIDER: Record<string, string[]> = {
-  openai: ["gpt-4o-mini-transcribe", "gpt-4o-transcribe", "whisper-1"],
-  groq: ["whisper-large-v3-turbo", "whisper-large-v3"],
+// Espejo de providers::default_model (el backend manda): solo para resetear
+// el modelo al cambiar de proveedor; la lista real llega por `list_models`.
+const DEFAULT_MODEL_BY_PROVIDER: Record<string, string> = {
+  openai: "gpt-4o-mini-transcribe",
+  groq: "whisper-large-v3-turbo",
 };
 const STT_LANGUAGES = ["auto", "es", "en"];
+// Pausas de silencio (ms) que cierran el dictado en modo toggle; espejo del
+// default en config::default_silence_hangover_ms (2000).
+const SILENCE_PAUSES_MS = [1200, 2000, 3000] as const;
+// Umbral de probabilidad de voz del VAD (Silero): más bajo = más sensible,
+// la voz suave sigue contando como habla. Espejo de
+// config::default_vad_threshold (0.5). Las etiquetas i18n van por 1000
+// (300/500/700) porque los puntos no sirven en claves de i18next.
+const VAD_THRESHOLDS = [0.3, 0.5, 0.7] as const;
 const UI_LANGUAGES = ["es", "en"];
-const SECTIONS: SectionId[] = ["general", "recognition", "shortcuts", "about"];
+// Modos de dictado (ADR-0014); ids persistidos tal como los nombra el ADR.
+const DICTATION_MODES = ["literal", "mejorado", "prompt"] as const;
+const SECTIONS: SectionId[] = ["general", "recognition", "shortcuts", "usage", "about"];
 
 function App() {
   const { t, i18n } = useTranslation();
@@ -54,6 +68,68 @@ function App() {
     total: number | null;
   }>({ downloaded: 0, total: null });
   const [updateError, setUpdateError] = useState<string | null>(null);
+  // Prueba de micrófono para calibrar la sensibilidad del VAD: nivel de entrada
+  // en vivo (0..1, ~30 Hz) y veredicto de voz del VAD al umbral configurado. No
+  // graba ni transcribe; el backend descarta el audio al detener.
+  const [micTest, setMicTest] = useState(false);
+  const [micLevel, setMicLevel] = useState(0);
+  const [micSpeaking, setMicSpeaking] = useState(false);
+  // Catálogo de modelos del proveedor, consultado en vivo. Sin fallback
+  // estático: null = sin datos (sin key, sin red o proveedor caído).
+  const [models, setModels] = useState<ModelCatalog | null>(null);
+  const [modelsLoading, setModelsLoading] = useState(false);
+  // errorKey i18n del último fetch fallido (err.models.noKey, err.stt.*).
+  const [modelsError, setModelsError] = useState<string | null>(null);
+
+  // Ledger de gastos estimados y tarifas efectivas (ADR-0015); se cargan al
+  // entrar a la sección Gastos.
+  const [usage, setUsage] = useState<UsageLedger | null>(null);
+  const [usageRates, setUsageRates] = useState<Record<string, number> | null>(null);
+
+  const fetchUsage = useCallback(() => {
+    invoke<UsageLedger>("get_usage")
+      .then(setUsage)
+      .catch(() => setUsage(null));
+    invoke<Record<string, number>>("get_usage_rates")
+      .then(setUsageRates)
+      .catch(() => setUsageRates(null));
+  }, []);
+
+  useEffect(() => {
+    if (section === "usage") fetchUsage();
+  }, [section, fetchUsage]);
+
+  // Catálogo chat del proveedor del post-procesado LLM (ADR-0014). Es un
+  // catálogo aparte del de STT: el proveedor de IA puede ser otro.
+  const [llmModels, setLlmModels] = useState<ModelCatalog | null>(null);
+
+  const fetchLlmModels = useCallback((forProvider: string) => {
+    invoke<ModelCatalog>("list_models", { provider: forProvider })
+      .then(setLlmModels)
+      .catch(() => setLlmModels(null));
+  }, []);
+
+  const dictationMode = settings?.general.dictation_mode ?? "literal";
+  const llmProvider = settings?.llm.provider ?? "openai";
+
+  useEffect(() => {
+    if (section === "general" && dictationMode !== "literal") {
+      fetchLlmModels(llmProvider);
+    }
+  }, [section, dictationMode, llmProvider, fetchLlmModels]);
+
+  const fetchModels = useCallback((forProvider: string) => {
+    setModelsLoading(true);
+    setModelsError(null);
+    invoke<ModelCatalog>("list_models", { provider: forProvider })
+      .then(setModels)
+      .catch((e: unknown) => {
+        setModels(null);
+        const err = e as IpcError;
+        setModelsError(err?.errorKey ?? "err.stt.provider");
+      })
+      .finally(() => setModelsLoading(false));
+  }, []);
 
   useEffect(() => {
     invoke<Settings>("get_settings")
@@ -66,6 +142,7 @@ function App() {
         invoke<ApiKeyStatus>("get_api_key_status", { provider: s.stt.provider })
           .then(setKeyStatus)
           .catch(() => setKeyStatus(null));
+        fetchModels(s.stt.provider);
       })
       .catch(() => {});
     invoke<string[]>("list_input_devices")
@@ -75,7 +152,7 @@ function App() {
       .then((m) => m.getVersion())
       .then(setVersion)
       .catch(() => {});
-  }, [i18n]);
+  }, [i18n, fetchModels]);
 
   useEffect(() => {
     const unlisten = listen<DomainEvent>("domain-event", ({ payload: ev }) => {
@@ -91,6 +168,14 @@ function App() {
           break;
         case "transcriptionCompleted":
           setLastTranscript(ev.payload.text);
+          break;
+        // Etapa LLM opcional (ADR-0014). El fallo es solo aviso: el ciclo
+        // sigue con la entrega degradada del texto literal.
+        case "postProcessingStarted":
+          setCycleStatus({ kind: "busy", text: t("status.polishing") });
+          break;
+        case "postProcessingFailed":
+          setCycleStatus({ kind: "error", text: t(ev.payload.errorKey) });
           break;
         case "textDeliveryCompleted":
           setCycleStatus({
@@ -128,6 +213,23 @@ function App() {
     };
   }, [t]);
 
+  // Telemetría en vivo de la prueba de micrófono. Solo llega mientras hay una
+  // prueba en curso, así que dejar los listeners montados es inocuo.
+  useEffect(() => {
+    const unlistenLevel = listen<number>("mic-test-level", ({ payload }) => setMicLevel(payload));
+    const unlistenSpeaking = listen<boolean>("mic-test-speaking", ({ payload }) =>
+      setMicSpeaking(payload),
+    );
+    return () => {
+      unlistenLevel.then((fn) => fn()).catch(() => {});
+      unlistenSpeaking.then((fn) => fn()).catch(() => {});
+    };
+  }, []);
+
+  // Corta la prueba si se cierra la ventana (desmontaje) para no dejar el
+  // micrófono capturando en segundo plano.
+  useEffect(() => () => void invoke("stop_mic_test").catch(() => {}), []);
+
   const showError = (e: unknown) => {
     const err = e as IpcError;
     setFeedback({
@@ -161,6 +263,17 @@ function App() {
       .catch(showError);
   };
 
+  const patchVad = (patch: Partial<VadSettings>, okKey: string) => {
+    if (!settings) return;
+    const updated: Settings = { ...settings, vad: { ...settings.vad, ...patch } };
+    invoke("set_settings", { settings: updated })
+      .then(() => {
+        setSettings(updated);
+        setFeedback({ kind: "ok", text: t(okKey) });
+      })
+      .catch(showError);
+  };
+
   const patchAudio = (patch: Partial<AudioSettings>, okKey: string) => {
     if (!settings) return;
     const updated: Settings = { ...settings, audio: { ...settings.audio, ...patch } };
@@ -172,9 +285,72 @@ function App() {
       .catch(showError);
   };
 
+  const patchLlm = (patch: Partial<LlmSettings>, okKey: string) => {
+    if (!settings) return;
+    const updated: Settings = { ...settings, llm: { ...settings.llm, ...patch } };
+    invoke("set_settings", { settings: updated })
+      .then(() => {
+        setSettings(updated);
+        setFeedback({ kind: "ok", text: t(okKey) });
+      })
+      .catch(showError);
+  };
+
+  // Reset manual del acumulado de gastos (ADR-0015): por proveedor o global.
+  const resetUsage = (forProvider?: string) => {
+    invoke<UsageLedger>("reset_usage", { provider: forProvider ?? null })
+      .then((ledger) => {
+        setUsage(ledger);
+        setFeedback({ kind: "ok", text: t("settings.usage.resetDone") });
+      })
+      .catch(showError);
+  };
+
+  // Guarda un override de tarifa (USD/min) en settings.pricing.rates; aplica
+  // a los dictados siguientes, el histórico no se reescribe.
+  const saveRate = (key: string, value: number) => {
+    if (!settings || !Number.isFinite(value) || value < 0) return;
+    const rates = { ...settings.pricing.rates, [key]: value };
+    const updated: Settings = { ...settings, pricing: { rates } };
+    invoke("set_settings", { settings: updated })
+      .then(() => {
+        setSettings(updated);
+        setUsageRates((prev) => ({ ...(prev ?? {}), [key]: value }));
+        setFeedback({ kind: "ok", text: t("settings.usage.rateSaved") });
+      })
+      .catch(showError);
+  };
+
   // Proveedor STT elegido y su nombre de marca para las cadenas de la UI.
   const provider = settings?.stt.provider ?? "openai";
   const providerName = PROVIDER_NAMES[provider] ?? provider;
+
+  // Derivadas de la pantalla de gastos: mes local en curso y agregados por
+  // proveedor (el ledger llega plano por (proveedor, modelo, mes)).
+  const now = new Date();
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const usageEntries = usage?.entries ?? [];
+  const usageProviders = [...new Set(usageEntries.map((e) => e.provider))].sort();
+  const monthEntries = usageEntries.filter((e) => e.month === currentMonth);
+  const fmtUsd = (v: number) => v.toFixed(4);
+  const fmtMin = (s: number) => (s / 60).toFixed(1);
+
+  // Modelos chat para el post-procesado LLM; mismo criterio que el selector
+  // STT: el modelo guardado se conserva como opción extra si falta.
+  const chatModels = llmModels?.chat ?? [];
+  const savedLlmModelMissing =
+    !!settings && settings.llm.model !== "" && !chatModels.includes(settings.llm.model);
+
+  // Modelos STT del catálogo vivo; el modelo guardado se conserva como opción
+  // extra si el proveedor ya no lo lista (no se pisa config silenciosamente).
+  // Sin key no hay catálogo posible: ahí el select queda vacío y deshabilitado
+  // (el aviso ya pide configurar la clave), sin marcar el modelo guardado.
+  const sttModels = models?.stt ?? [];
+  const savedModelMissing =
+    !!settings &&
+    settings.stt.model !== "" &&
+    modelsError !== "err.models.noKey" &&
+    !sttModels.includes(settings.stt.model);
 
   const refreshKeyStatus = (forProvider: string) => {
     invoke<ApiKeyStatus>("get_api_key_status", { provider: forProvider })
@@ -186,23 +362,27 @@ function App() {
     invoke<ApiKeyStatus>("set_api_key", { provider, key: apiKeyInput })
       .then((status) => {
         setKeyStatus(status);
+        fetchModels(provider);
         setApiKeyInput("");
         setFeedback({ kind: "ok", text: t("settings.apiKey.saved") });
       })
       .catch(showError);
   };
 
-  // Cambia de proveedor: resetea el modelo al default del nuevo proveedor y
-  // refresca el estado de la key (cada proveedor tiene la suya).
+  // Cambia de proveedor: resetea el modelo al default del nuevo proveedor,
+  // refresca el estado de la key (cada proveedor tiene la suya) y repuebla el
+  // catálogo de modelos.
   const changeProvider = (next: string) => {
     if (!settings) return;
-    const model = MODELS_BY_PROVIDER[next]?.[0] ?? settings.stt.model;
+    const model = DEFAULT_MODEL_BY_PROVIDER[next] ?? settings.stt.model;
     const updated: Settings = { ...settings, stt: { ...settings.stt, provider: next, model } };
     invoke("set_settings", { settings: updated })
       .then(() => {
         setSettings(updated);
         setApiKeyInput("");
         refreshKeyStatus(next);
+        setModels(null); // el catálogo del proveedor anterior ya no vale
+        fetchModels(next);
         setFeedback({ kind: "ok", text: t("settings.stt.saved") });
       })
       .catch(showError);
@@ -214,6 +394,31 @@ function App() {
       .then(() => setFeedback({ kind: "ok", text: t("settings.apiKey.testOk") }))
       .catch(showError)
       .finally(() => setTesting(false));
+  };
+
+  const stopMicTest = () => {
+    setMicTest(false);
+    setMicLevel(0);
+    setMicSpeaking(false);
+    invoke("stop_mic_test").catch(() => {});
+  };
+
+  const startMicTest = () => {
+    setMicLevel(0);
+    setMicSpeaking(false);
+    setMicTest(true);
+    invoke("start_mic_test").catch((e) => {
+      setMicTest(false);
+      showError(e);
+    });
+  };
+
+  // Reinicia la prueba en curso: el backend lee mic y umbral solo al arrancar,
+  // así que tras cambiarlos hay que reabrir la captura para reflejarlos en vivo.
+  const restartMicTest = () => {
+    invoke("stop_mic_test")
+      .then(() => invoke("start_mic_test"))
+      .catch(() => {});
   };
 
   const saveHotkey = () => patchGeneral({ hotkey: hotkeyInput }, "settings.hotkey.saved");
@@ -259,15 +464,25 @@ function App() {
   return (
     <div className="shell">
       <nav className="side">
-        <div className="avatar" aria-hidden="true">
-          <span className="avatar-heart" />
-          <span className="avatar-glass" />
+        <div className="brand">
+          <div className="avatar" aria-hidden="true">
+            <span className="avatar-heart" />
+            <span className="avatar-glass" />
+          </div>
+          <div className="brand-text">
+            <span className="brand-name">{t("settings.title")}</span>
+            <span className="brand-sub">{t("settings.subtitle")}</span>
+          </div>
         </div>
         {SECTIONS.map((id) => (
           <button
             key={id}
             className={section === id ? "nav-item active" : "nav-item"}
-            onClick={() => setSection(id)}
+            onClick={() => {
+              // La prueba de mic vive en "shortcuts"; al irse, se detiene.
+              if (micTest && id !== "shortcuts") stopMicTest();
+              setSection(id);
+            }}
           >
             {t(`settings.nav.${id}`)}
           </button>
@@ -392,6 +607,64 @@ function App() {
                 {t("settings.outputMode.clipboard")}
               </label>
             </section>
+
+            <section className="group">
+              <h3>{t("settings.dictation.label")}</h3>
+              {DICTATION_MODES.map((mode) => (
+                <label key={mode} className="check-row">
+                  <input
+                    type="radio"
+                    name="dictation-mode"
+                    checked={dictationMode === mode}
+                    disabled={!settings}
+                    onChange={() =>
+                      patchGeneral({ dictation_mode: mode }, "settings.dictation.saved")
+                    }
+                  />
+                  {t(`settings.dictation.${mode}`)}
+                </label>
+              ))}
+              {dictationMode !== "literal" && (
+                <>
+                  <p className="hint">{t("settings.dictation.costHint")}</p>
+                  <label className="field">
+                    {t("settings.dictation.provider")}
+                    <select
+                      value={llmProvider}
+                      disabled={!settings}
+                      onChange={(e) =>
+                        patchLlm({ provider: e.target.value }, "settings.dictation.saved")
+                      }
+                    >
+                      {PROVIDERS.map((id) => (
+                        <option key={id} value={id}>
+                          {PROVIDER_NAMES[id]}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    {t("settings.dictation.model")}
+                    <select
+                      value={settings?.llm.model ?? ""}
+                      disabled={!settings || (chatModels.length === 0 && !savedLlmModelMissing)}
+                      onChange={(e) =>
+                        patchLlm({ model: e.target.value }, "settings.dictation.saved")
+                      }
+                    >
+                      {savedLlmModelMissing && (
+                        <option value={settings?.llm.model ?? ""}>{settings?.llm.model}</option>
+                      )}
+                      {chatModels.map((m) => (
+                        <option key={m} value={m}>
+                          {m}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </>
+              )}
+            </section>
           </>
         )}
 
@@ -448,16 +721,39 @@ function App() {
                 {t("settings.stt.model")}
                 <select
                   value={settings?.stt.model ?? ""}
-                  disabled={!settings}
+                  disabled={
+                    !settings || modelsLoading || (sttModels.length === 0 && !savedModelMissing)
+                  }
                   onChange={(e) => patchStt({ model: e.target.value }, "settings.stt.saved")}
                 >
-                  {(MODELS_BY_PROVIDER[provider] ?? []).map((m) => (
+                  {savedModelMissing && (
+                    <option value={settings?.stt.model ?? ""}>
+                      {t("settings.stt.modelUnavailable", { model: settings?.stt.model })}
+                    </option>
+                  )}
+                  {sttModels.map((m) => (
                     <option key={m} value={m}>
                       {m}
                     </option>
                   ))}
                 </select>
               </label>
+              <div className="row">
+                <button
+                  type="button"
+                  onClick={() => fetchModels(provider)}
+                  disabled={modelsLoading}
+                  aria-label={t("settings.stt.modelsRefresh")}
+                >
+                  {modelsLoading
+                    ? t("settings.stt.modelsLoading")
+                    : t("settings.stt.modelsRefresh")}
+                </button>
+              </div>
+              {modelsError && <p className="feedback-error">{t(modelsError)}</p>}
+              {!modelsLoading && !modelsError && models !== null && sttModels.length === 0 && (
+                <p className="hint">{t("settings.stt.modelsEmpty")}</p>
+              )}
               <label className="field">
                 {t("settings.stt.language")}
                 <select
@@ -511,9 +807,11 @@ function App() {
                   name="activation-mode"
                   checked={settings?.general.activation_mode !== "toggle"}
                   disabled={!settings}
-                  onChange={() =>
-                    patchGeneral({ activation_mode: "ptt" }, "settings.activation.saved")
-                  }
+                  onChange={() => {
+                    // PTT oculta la sensibilidad; corta cualquier prueba en curso.
+                    if (micTest) stopMicTest();
+                    patchGeneral({ activation_mode: "ptt" }, "settings.activation.saved");
+                  }}
                 />
                 {t("settings.activation.ptt")}
               </label>
@@ -530,6 +828,95 @@ function App() {
                 {t("settings.activation.toggle")}
               </label>
             </section>
+            {settings?.general.activation_mode === "toggle" && (
+              <section className="group">
+                <h3>{t("settings.autocut.label")}</h3>
+                <p className="hint">{t("settings.pause.hint")}</p>
+                <label className="field">
+                  {t("settings.pause.label")}
+                  <select
+                    value={String(settings.vad.silence_hangover_ms)}
+                    onChange={(e) =>
+                      patchVad(
+                        { silence_hangover_ms: Number(e.target.value) },
+                        "settings.pause.saved",
+                      )
+                    }
+                  >
+                    {SILENCE_PAUSES_MS.map((ms) => (
+                      <option key={ms} value={String(ms)}>
+                        {t(`settings.pause.options.${ms}`)}
+                      </option>
+                    ))}
+                    {!SILENCE_PAUSES_MS.some((ms) => ms === settings.vad.silence_hangover_ms) && (
+                      <option value={String(settings.vad.silence_hangover_ms)}>
+                        {t("settings.pause.custom", {
+                          seconds: settings.vad.silence_hangover_ms / 1000,
+                        })}
+                      </option>
+                    )}
+                  </select>
+                </label>
+                <p className="hint">{t("settings.sensitivity.hint")}</p>
+                <label className="field">
+                  {t("settings.sensitivity.label")}
+                  <select
+                    value={String(settings.vad.threshold)}
+                    onChange={(e) => {
+                      patchVad({ threshold: Number(e.target.value) }, "settings.sensitivity.saved");
+                      if (micTest) restartMicTest();
+                    }}
+                  >
+                    {VAD_THRESHOLDS.map((th) => (
+                      <option key={th} value={String(th)}>
+                        {t(`settings.sensitivity.options.${Math.round(th * 1000)}`)}
+                      </option>
+                    ))}
+                    {!VAD_THRESHOLDS.some((th) => th === settings.vad.threshold) && (
+                      <option value={String(settings.vad.threshold)}>
+                        {t("settings.sensitivity.custom", { value: settings.vad.threshold })}
+                      </option>
+                    )}
+                  </select>
+                </label>
+                <p className="hint">{t("settings.micTest.hint")}</p>
+                <div className="mic-test">
+                  <button
+                    type="button"
+                    className={micTest ? "mic-test-toggle is-on" : "mic-test-toggle"}
+                    onClick={micTest ? stopMicTest : startMicTest}
+                    disabled={!settings}
+                  >
+                    {micTest ? t("settings.micTest.stop") : t("settings.micTest.start")}
+                  </button>
+                  {micTest && (
+                    <div className="mic-test-live">
+                      <div
+                        className="mic-meter"
+                        role="meter"
+                        aria-label={t("settings.micTest.level")}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={Math.round(micLevel * 100)}
+                      >
+                        <span
+                          className="mic-meter-fill"
+                          style={{ width: `${Math.round(micLevel * 100)}%` }}
+                        />
+                      </div>
+                      <span
+                        className={micSpeaking ? "mic-verdict is-speaking" : "mic-verdict"}
+                        aria-live="polite"
+                      >
+                        {micSpeaking
+                          ? t("settings.micTest.speaking")
+                          : t("settings.micTest.silent")}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
             <section className="group">
               <h3>{t("settings.hotkey.label")}</h3>
               <p className="hint">
@@ -548,6 +935,100 @@ function App() {
                   {t("settings.hotkey.save")}
                 </button>
               </div>
+            </section>
+          </>
+        )}
+
+        {section === "usage" && (
+          <>
+            <h2 className="panel-title">{t("settings.nav.usage")}</h2>
+
+            <section className="group">
+              <h3>{t("settings.usage.currentMonth", { month: currentMonth })}</h3>
+              <p className="hint">{t("settings.usage.disclaimer")}</p>
+              {monthEntries.length === 0 && <p className="hint">{t("settings.usage.empty")}</p>}
+              {usageProviders.map((p) => {
+                const rows = monthEntries.filter((e) => e.provider === p);
+                if (rows.length === 0) return null;
+                const cost = rows.reduce((acc, e) => acc + e.estimated_cost_usd, 0);
+                return (
+                  <div key={p} className="usage-provider">
+                    <div className="usage-row usage-row-head">
+                      <span>{PROVIDER_NAMES[p] ?? p}</span>
+                      <span>{t("settings.usage.cost", { cost: fmtUsd(cost) })}</span>
+                    </div>
+                    {rows.map((e) => (
+                      <div key={e.model} className="usage-row">
+                        <span className="usage-model">{e.model}</span>
+                        <span>
+                          {t("settings.usage.detail", {
+                            count: e.transcriptions,
+                            minutes: fmtMin(e.audio_seconds),
+                            cost: fmtUsd(e.estimated_cost_usd),
+                          })}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </section>
+
+            <section className="group">
+              <h3>{t("settings.usage.history")}</h3>
+              {usageEntries.length === 0 && <p className="hint">{t("settings.usage.empty")}</p>}
+              {usageProviders.map((p) => {
+                const rows = usageEntries.filter((e) => e.provider === p);
+                const cost = rows.reduce((acc, e) => acc + e.estimated_cost_usd, 0);
+                const seconds = rows.reduce((acc, e) => acc + e.audio_seconds, 0);
+                return (
+                  <div key={p} className="usage-row">
+                    <span>{PROVIDER_NAMES[p] ?? p}</span>
+                    <span>
+                      {t("settings.usage.detailTotal", {
+                        minutes: fmtMin(seconds),
+                        cost: fmtUsd(cost),
+                      })}
+                    </span>
+                    <button type="button" onClick={() => resetUsage(p)}>
+                      {t("settings.usage.resetProvider")}
+                    </button>
+                  </div>
+                );
+              })}
+              {usageEntries.length > 0 && (
+                <div className="row">
+                  <button type="button" onClick={() => resetUsage()}>
+                    {t("settings.usage.resetAll")}
+                  </button>
+                </div>
+              )}
+            </section>
+
+            <section className="group">
+              <h3>{t("settings.usage.rates")}</h3>
+              <p className="hint">{t("settings.usage.ratesHint")}</p>
+              {Object.entries(usageRates ?? {})
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([key, rate]) => (
+                  <label key={key} className="field usage-rate">
+                    {key}
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.0001"
+                      defaultValue={rate}
+                      aria-label={key}
+                      disabled={!settings}
+                      onBlur={(e) => {
+                        const value = Number(e.target.value);
+                        if (Number.isFinite(value) && value >= 0 && value !== rate) {
+                          saveRate(key, value);
+                        }
+                      }}
+                    />
+                  </label>
+                ))}
             </section>
           </>
         )}

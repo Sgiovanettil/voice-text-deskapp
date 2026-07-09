@@ -1,7 +1,7 @@
 # Spike R1 — Hotkey global vía XDG Desktop Portal (Wayland)
 
 - **Binario:** `cargo run --bin spike-hotkey-portal` (solo Linux — en otros SO imprime un mensaje y termina)
-- **ADR que alimenta:** [ADR-0004](../adr/0004-estrategia-linux-x11-wayland.md)
+- **ADR que alimenta:** [ADR-0004](../DECISIONS/0004-estrategia-linux-x11-wayland.md)
 - **Fecha de ejecución:** <completar>
 - **Ejecutado por:** <completar>
 

@@ -10,9 +10,10 @@ use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder}
 use crate::config::OverlayPos;
 
 const OVERLAY_LABEL: &str = "overlay";
-// Tamaño de la skin v1 "materia" (assets/design/overlay-prototype.html).
-const OVERLAY_W: f64 = 416.0;
-const OVERLAY_H: f64 = 118.0;
+// Tamaño de la skin v1 "materia" (assets/design/overlay-prototype.html),
+// ampliada ~12% sobre el prototipo para dar más aire a la onda y al texto.
+const OVERLAY_W: f64 = 464.0;
+const OVERLAY_H: f64 = 132.0;
 /// Separación desde el borde inferior de la pantalla (posición por defecto).
 const OVERLAY_MARGIN: f64 = 56.0;
 

@@ -9,6 +9,21 @@ export interface Settings {
   delivery: DeliverySettings;
   vad: VadSettings;
   audio: AudioSettings;
+  pricing: PricingSettings;
+  llm: LlmSettings;
+}
+
+// Proveedor y modelo del post-procesado LLM (ADR-0014); solo aplica cuando
+// general.dictation_mode no es "literal".
+export interface LlmSettings {
+  provider: string;
+  model: string;
+}
+
+// Overrides de tarifas para la estimación de gastos (ADR-0015); los defaults
+// viven en el backend (usage::default_rate). Clave "proveedor/modelo".
+export interface PricingSettings {
+  rates: Record<string, number>;
 }
 
 export interface AudioSettings {
@@ -23,6 +38,8 @@ export interface GeneralSettings {
   start_minimized: boolean;
   output_mode: string;
   activation_mode: string;
+  // "literal" | "mejorado" | "prompt" (ADR-0014); desconocidos = literal.
+  dictation_mode: string;
   overlay_position: OverlayPos | null;
 }
 
@@ -55,4 +72,27 @@ export interface ApiKeyStatus {
 export interface IpcError {
   code: string;
   errorKey: string;
+}
+
+// Espejo de providers::ModelCatalog (serde camelCase): modelos del proveedor
+// clasificados en vivo. `chat` queda para el post-procesado LLM (ADR-0014).
+export interface ModelCatalog {
+  stt: string[];
+  chat: string[];
+}
+
+// Espejo de usage::UsageEntry / usage::UsageLedger (ADR-0015, snake_case como
+// Settings): acumulado de gastos estimados por (proveedor, modelo, mes).
+export interface UsageEntry {
+  provider: string;
+  model: string;
+  month: string;
+  transcriptions: number;
+  audio_seconds: number;
+  estimated_cost_usd: number;
+}
+
+export interface UsageLedger {
+  schema_version: number;
+  entries: UsageEntry[];
 }

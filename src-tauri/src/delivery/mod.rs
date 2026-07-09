@@ -1,5 +1,5 @@
 //! Inserción de texto en la app activa y modo clipboard. Mecanismo según
-//! ADR-0005. Ver docs/ARCHITECTURE.md §4.6.
+//! ADR-0005. Ver docs/2-arquitectura/ARCHITECTURE.md §4.6.
 //!
 //! Dos modos (RF-06): `clipboard` (solo copiar, garantizado en todas las
 //! plataformas) e `insert` (clipboard + pegado sintético con restauración del

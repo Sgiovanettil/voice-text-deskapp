@@ -1,5 +1,5 @@
 //! Spike R1 / ADR-0004 — hotkey global vía XDG Desktop Portal
-//! `GlobalShortcuts` (Wayland GNOME/KDE). Ver docs/spikes/r1-hotkey-portal.md.
+//! `GlobalShortcuts` (Wayland GNOME/KDE). Ver docs/2-arquitectura/spikes/r1-hotkey-portal.md.
 //!
 //! Uso: `cargo run --bin spike-hotkey-portal` en una sesión GNOME/KDE Wayland
 //! real. Debería aparecer el diálogo de aprobación del portal la primera vez;
