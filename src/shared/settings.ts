@@ -56,3 +56,10 @@ export interface IpcError {
   code: string;
   errorKey: string;
 }
+
+// Espejo de providers::ModelCatalog (serde camelCase): modelos del proveedor
+// clasificados en vivo. `chat` queda para el post-procesado LLM (ADR-0014).
+export interface ModelCatalog {
+  stt: string[];
+  chat: string[];
+}

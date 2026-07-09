@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -9,6 +9,7 @@ import type {
   AudioSettings,
   GeneralSettings,
   IpcError,
+  ModelCatalog,
   Settings,
   SttSettings,
   VadSettings,
@@ -25,11 +26,11 @@ type UpdatePhase = "idle" | "checking" | "available" | "downloading" | "error";
 const PROVIDERS = ["openai", "groq"] as const;
 // Nombres de marca de cada proveedor (no se traducen).
 const PROVIDER_NAMES: Record<string, string> = { openai: "OpenAI", groq: "Groq" };
-// Modelos por proveedor; el primero es el default al elegir el proveedor
-// (espejo de providers::default_model en el backend).
-const MODELS_BY_PROVIDER: Record<string, string[]> = {
-  openai: ["gpt-4o-mini-transcribe", "gpt-4o-transcribe", "whisper-1"],
-  groq: ["whisper-large-v3-turbo", "whisper-large-v3"],
+// Espejo de providers::default_model (el backend manda): solo para resetear
+// el modelo al cambiar de proveedor; la lista real llega por `list_models`.
+const DEFAULT_MODEL_BY_PROVIDER: Record<string, string> = {
+  openai: "gpt-4o-mini-transcribe",
+  groq: "whisper-large-v3-turbo",
 };
 const STT_LANGUAGES = ["auto", "es", "en"];
 // Pausas de silencio (ms) que cierran el dictado en modo toggle; espejo del
@@ -69,6 +70,25 @@ function App() {
   const [micTest, setMicTest] = useState(false);
   const [micLevel, setMicLevel] = useState(0);
   const [micSpeaking, setMicSpeaking] = useState(false);
+  // Catálogo de modelos del proveedor, consultado en vivo. Sin fallback
+  // estático: null = sin datos (sin key, sin red o proveedor caído).
+  const [models, setModels] = useState<ModelCatalog | null>(null);
+  const [modelsLoading, setModelsLoading] = useState(false);
+  // errorKey i18n del último fetch fallido (err.models.noKey, err.stt.*).
+  const [modelsError, setModelsError] = useState<string | null>(null);
+
+  const fetchModels = useCallback((forProvider: string) => {
+    setModelsLoading(true);
+    setModelsError(null);
+    invoke<ModelCatalog>("list_models", { provider: forProvider })
+      .then(setModels)
+      .catch((e: unknown) => {
+        setModels(null);
+        const err = e as IpcError;
+        setModelsError(err?.errorKey ?? "err.stt.provider");
+      })
+      .finally(() => setModelsLoading(false));
+  }, []);
 
   useEffect(() => {
     invoke<Settings>("get_settings")
@@ -81,6 +101,7 @@ function App() {
         invoke<ApiKeyStatus>("get_api_key_status", { provider: s.stt.provider })
           .then(setKeyStatus)
           .catch(() => setKeyStatus(null));
+        fetchModels(s.stt.provider);
       })
       .catch(() => {});
     invoke<string[]>("list_input_devices")
@@ -90,7 +111,7 @@ function App() {
       .then((m) => m.getVersion())
       .then(setVersion)
       .catch(() => {});
-  }, [i18n]);
+  }, [i18n, fetchModels]);
 
   useEffect(() => {
     const unlisten = listen<DomainEvent>("domain-event", ({ payload: ev }) => {
@@ -219,6 +240,17 @@ function App() {
   const provider = settings?.stt.provider ?? "openai";
   const providerName = PROVIDER_NAMES[provider] ?? provider;
 
+  // Modelos STT del catálogo vivo; el modelo guardado se conserva como opción
+  // extra si el proveedor ya no lo lista (no se pisa config silenciosamente).
+  // Sin key no hay catálogo posible: ahí el select queda vacío y deshabilitado
+  // (el aviso ya pide configurar la clave), sin marcar el modelo guardado.
+  const sttModels = models?.stt ?? [];
+  const savedModelMissing =
+    !!settings &&
+    settings.stt.model !== "" &&
+    modelsError !== "err.models.noKey" &&
+    !sttModels.includes(settings.stt.model);
+
   const refreshKeyStatus = (forProvider: string) => {
     invoke<ApiKeyStatus>("get_api_key_status", { provider: forProvider })
       .then(setKeyStatus)
@@ -229,23 +261,27 @@ function App() {
     invoke<ApiKeyStatus>("set_api_key", { provider, key: apiKeyInput })
       .then((status) => {
         setKeyStatus(status);
+        fetchModels(provider);
         setApiKeyInput("");
         setFeedback({ kind: "ok", text: t("settings.apiKey.saved") });
       })
       .catch(showError);
   };
 
-  // Cambia de proveedor: resetea el modelo al default del nuevo proveedor y
-  // refresca el estado de la key (cada proveedor tiene la suya).
+  // Cambia de proveedor: resetea el modelo al default del nuevo proveedor,
+  // refresca el estado de la key (cada proveedor tiene la suya) y repuebla el
+  // catálogo de modelos.
   const changeProvider = (next: string) => {
     if (!settings) return;
-    const model = MODELS_BY_PROVIDER[next]?.[0] ?? settings.stt.model;
+    const model = DEFAULT_MODEL_BY_PROVIDER[next] ?? settings.stt.model;
     const updated: Settings = { ...settings, stt: { ...settings.stt, provider: next, model } };
     invoke("set_settings", { settings: updated })
       .then(() => {
         setSettings(updated);
         setApiKeyInput("");
         refreshKeyStatus(next);
+        setModels(null); // el catálogo del proveedor anterior ya no vale
+        fetchModels(next);
         setFeedback({ kind: "ok", text: t("settings.stt.saved") });
       })
       .catch(showError);
@@ -526,16 +562,39 @@ function App() {
                 {t("settings.stt.model")}
                 <select
                   value={settings?.stt.model ?? ""}
-                  disabled={!settings}
+                  disabled={
+                    !settings || modelsLoading || (sttModels.length === 0 && !savedModelMissing)
+                  }
                   onChange={(e) => patchStt({ model: e.target.value }, "settings.stt.saved")}
                 >
-                  {(MODELS_BY_PROVIDER[provider] ?? []).map((m) => (
+                  {savedModelMissing && (
+                    <option value={settings?.stt.model ?? ""}>
+                      {t("settings.stt.modelUnavailable", { model: settings?.stt.model })}
+                    </option>
+                  )}
+                  {sttModels.map((m) => (
                     <option key={m} value={m}>
                       {m}
                     </option>
                   ))}
                 </select>
               </label>
+              <div className="row">
+                <button
+                  type="button"
+                  onClick={() => fetchModels(provider)}
+                  disabled={modelsLoading}
+                  aria-label={t("settings.stt.modelsRefresh")}
+                >
+                  {modelsLoading
+                    ? t("settings.stt.modelsLoading")
+                    : t("settings.stt.modelsRefresh")}
+                </button>
+              </div>
+              {modelsError && <p className="feedback-error">{t(modelsError)}</p>}
+              {!modelsLoading && !modelsError && models !== null && sttModels.length === 0 && (
+                <p className="hint">{t("settings.stt.modelsEmpty")}</p>
+              )}
               <label className="field">
                 {t("settings.stt.language")}
                 <select

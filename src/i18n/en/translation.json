@@ -80,6 +80,10 @@
       "model": "Model",
       "language": "Dictation language",
       "saved": "Transcription preference saved.",
+      "modelsRefresh": "Refresh models",
+      "modelsLoading": "Loading models…",
+      "modelsEmpty": "The provider returned no compatible models.",
+      "modelUnavailable": "{{model}} (unavailable)",
       "languages": {
         "auto": "Automatic detection",
         "es": "Spanish",
@@ -172,6 +176,9 @@
     },
     "config": {
       "invalid": "The saved configuration is invalid."
+    },
+    "models": {
+      "noKey": "Save your API key to see the available models."
     },
     "update": {
       "network": "Couldn't check for updates. Check your connection.",

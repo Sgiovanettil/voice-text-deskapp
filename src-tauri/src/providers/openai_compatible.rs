@@ -69,6 +69,60 @@ impl OpenAiCompatibleProvider {
         }
     }
 
+    /// Lista los ids de modelos disponibles (`GET /models`, contrato OpenAI:
+    /// `{ "object": "list", "data": [ { "id": ... }, ... ] }`). Groq añade
+    /// campos extra (`active`, `context_window`); serde los ignora salvo
+    /// `active`, que usamos para descartar modelos desactivados.
+    pub async fn fetch_model_ids(&self) -> Result<Vec<String>, SpeechError> {
+        #[derive(serde::Deserialize)]
+        struct ModelsResponse {
+            data: Vec<ModelEntry>,
+        }
+        #[derive(serde::Deserialize)]
+        struct ModelEntry {
+            id: String,
+            /// Solo Groq lo envía; ausente (OpenAI) = activo.
+            #[serde(default)]
+            active: Option<bool>,
+        }
+
+        let response = self
+            .client
+            .get(format!("{}/models", self.base_url))
+            .bearer_auth(&self.api_key)
+            .timeout(std::time::Duration::from_secs(10))
+            .send()
+            .await
+            .map_err(|e| {
+                if e.is_timeout() || e.is_connect() {
+                    SpeechError::Network
+                } else {
+                    SpeechError::Provider {
+                        code: e.to_string(),
+                    }
+                }
+            })?;
+        match response.status().as_u16() {
+            200 => {
+                let body: ModelsResponse =
+                    response.json().await.map_err(|e| SpeechError::Provider {
+                        code: format!("respuesta inválida: {e}"),
+                    })?;
+                Ok(body
+                    .data
+                    .into_iter()
+                    .filter(|m| m.active != Some(false))
+                    .map(|m| m.id)
+                    .collect())
+            }
+            401 | 403 => Err(SpeechError::Auth),
+            429 => Err(SpeechError::RateLimited),
+            status => Err(SpeechError::Provider {
+                code: status.to_string(),
+            }),
+        }
+    }
+
     async fn request_once(
         &self,
         wav: Vec<u8>,
@@ -352,5 +406,134 @@ mod tests {
             .await
             .unwrap_err();
         assert!(matches!(err, SpeechError::Auth));
+    }
+
+    #[tokio::test]
+    async fn fetch_model_ids_200_devuelve_ids() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/models"))
+            .and(header_exists("authorization"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "object": "list",
+                "data": [
+                    { "id": "whisper-1", "object": "model", "created": 1_677_532_384, "owned_by": "openai-internal" },
+                    { "id": "gpt-4o", "object": "model", "created": 1_715_367_049, "owned_by": "system" }
+                ]
+            })))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let ids = provider_for(&server).await.fetch_model_ids().await.unwrap();
+        assert_eq!(ids, vec!["whisper-1".to_string(), "gpt-4o".to_string()]);
+    }
+
+    #[tokio::test]
+    async fn fetch_model_ids_filtra_inactivos_de_groq() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/models"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "object": "list",
+                "data": [
+                    { "id": "whisper-large-v3", "object": "model", "created": 1_693_721_698,
+                      "owned_by": "OpenAI", "active": true, "context_window": 448 },
+                    { "id": "modelo-viejo", "object": "model", "created": 1_693_721_698,
+                      "owned_by": "Meta", "active": false, "context_window": 8192 }
+                ]
+            })))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let ids = provider_for(&server).await.fetch_model_ids().await.unwrap();
+        assert_eq!(ids, vec!["whisper-large-v3".to_string()]);
+    }
+
+    #[tokio::test]
+    async fn fetch_model_ids_401_mapea_a_auth() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/models"))
+            .respond_with(ResponseTemplate::new(401))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let err = provider_for(&server)
+            .await
+            .fetch_model_ids()
+            .await
+            .unwrap_err();
+        assert!(matches!(err, SpeechError::Auth));
+    }
+
+    #[tokio::test]
+    async fn fetch_model_ids_429_mapea_a_rate_limited() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/models"))
+            .respond_with(ResponseTemplate::new(429))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let err = provider_for(&server)
+            .await
+            .fetch_model_ids()
+            .await
+            .unwrap_err();
+        assert!(matches!(err, SpeechError::RateLimited));
+    }
+
+    #[tokio::test]
+    async fn fetch_model_ids_500_mapea_a_provider() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/models"))
+            .respond_with(ResponseTemplate::new(500))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let err = provider_for(&server)
+            .await
+            .fetch_model_ids()
+            .await
+            .unwrap_err();
+        assert!(matches!(err, SpeechError::Provider { code } if code == "500"));
+    }
+
+    #[tokio::test]
+    async fn fetch_model_ids_json_malformado_mapea_a_provider() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/models"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "unexpected": true
+            })))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let err = provider_for(&server)
+            .await
+            .fetch_model_ids()
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(err, SpeechError::Provider { ref code } if code.starts_with("respuesta inválida"))
+        );
+    }
+
+    #[tokio::test]
+    async fn fetch_model_ids_sin_conexion_mapea_a_network() {
+        // Puerto sin listener: reqwest falla con is_connect() → Network. No se
+        // testea el timeout de 10 s (alargaría la suite); comparte rama de mapeo.
+        let provider =
+            OpenAiCompatibleProvider::new("openai", "http://127.0.0.1:9", "sk-test".into());
+        let err = provider.fetch_model_ids().await.unwrap_err();
+        assert!(matches!(err, SpeechError::Network));
     }
 }
