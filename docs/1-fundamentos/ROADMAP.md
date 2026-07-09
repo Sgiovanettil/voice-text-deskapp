@@ -108,7 +108,7 @@ quedó construida y firmada, a la espera de publicar el borrador.
 | Diccionario personal/reemplazos ([ADR-0013](../2-arquitectura/DECISIONS/0013-diccionario-personal.md)) | ⏳ Pendiente |
 | Inglés en la UI | ⏳ Pendiente |
 | Ampliación de la matriz Wayland (compositores wlroots) | ⏳ Pendiente |
-| Descubrimiento dinámico de modelos (`GET /v1/models` por proveedor) | ⏳ Pendiente (post-v1.2.0) |
+| Descubrimiento dinámico de modelos (`GET /v1/models` por proveedor) | 📋 **Plan detallado listo** (PR #71): [PLAN_MODELOS_DINAMICOS.md](../3-desarrollo/PLAN_MODELOS_DINAMICOS.md) — pendiente de implementar |
 
 #### Toggle + VAD — detalle de lo entregado (2026-07-05)
 
@@ -127,8 +127,38 @@ quedó construida y firmada, a la espera de publicar el borrador.
 
 Streaming STT, Event Bus formal con suscriptores dinámicos, capacidad **LLM** (post-procesado del dictado: limpieza, formato, comandos de voz "en modo prompt" — spec anticipada en [ADR-0014](../2-arquitectura/DECISIONS/0014-modos-dictado-postprocesado-llm.md)).
 
-**Descubrimiento dinámico de modelos.** Hoy la lista de modelos por proveedor es estática (curada en `MODELS_BY_PROVIDER` del frontend y los `DEFAULT_MODEL` de cada `providers/*`). Ambos proveedores (OpenAI y Groq, compatible) exponen `GET /v1/models`, que ya se toca parcialmente en `check_auth`. La idea: un comando `list_models(proveedor, capacidad)` que traiga los modelos del endpoint, los **filtre por capacidad** (el endpoint devuelve todos los modelos mezclados, sin etiqueta de capacidad fiable → heurística por nombre o allow-list por capacidad), los **cachee** y **caiga a la lista estática curada** sin red/sin key. Encaja con la arquitectura por capacidades (ADR-0003) y se paga solo al llegar la capacidad **LLM** (mismo endpoint lista los modelos de chat). Priorizado para hacerse junto con, o justo antes de, la capacidad LLM.
+**Descubrimiento dinámico de modelos.** Diseño cerrado y documentado al milímetro en
+[PLAN_MODELOS_DINAMICOS.md](../3-desarrollo/PLAN_MODELOS_DINAMICOS.md) (PR #71), adelantado a
+v1.x: comando `list_models(proveedor)` que consulta `GET {base_url}/models` en vivo y devuelve
+un catálogo `{ stt, chat }` clasificado por heurística en Rust (STT allowlist, chat denylist).
+Decisiones que reemplazan la idea original de esta sección: **sin caché y sin fallback
+estático** (sin key/red → selector vacío con aviso y reintento manual), y la categoría `chat`
+se implementa ya, lista para consumirse cuando llegue la capacidad LLM (ADR-0014). El ADR de
+la feature será el **0016**.
 
 ### v3.x+
 
 TTS, Vision (capturas), Embeddings/RAG, Realtime, plugins; macOS.
+
+**Ruta hacia STT local y realtime conversacional** (orden acordado 2026-07-09). El pipeline
+actual es estrictamente batch (graba → VAD corta → `POST /audio/transcriptions` → texto); nada
+de lo realtime cabe en él, pero la arquitectura deja la puerta abierta a propósito:
+
+1. **STT local primero** (p. ej. NVIDIA Parakeet o whisper.cpp): tercer proveedor de tipo
+   nuevo — sin API HTTP, con descarga de pesos, runtime de inferencia (ONNX/NeMo) y enumeración
+   de modelos instalados en disco en vez de `GET /models`. Es el candidato "privacidad/offline"
+   ya anotado en ADR-0012, y valida un proveedor no-HTTP contra el trait `SpeechProvider` con
+   riesgo acotado antes del salto grande.
+2. **Modo conversacional realtime después** (p. ej. OpenAI Realtime API): WebSocket/WebRTC con
+   audio bidireccional en streaming, transcripción incremental, respuesta hablada y ejecución de
+   acciones (function calling). Es un modo de operación completo — otra conexión, otro ciclo de
+   vida de sesión, otros eventos de dominio — y un producto distinto al dictado, más allá
+   incluso del post-procesado del ADR-0014. Requiere su propio ADR. Groq no ofrece realtime
+   speech-to-speech; su velocidad permitiría a lo sumo un loop pseudo-realtime batch (STT + LLM
+   + TTS encadenados), que sería diseño aparte.
+
+Puntos de extensión que ya existen y no hay que romper: `ProviderCapabilities { batch,
+streaming }` (el flag de streaming espera esto desde ADR-0003) y el catálogo `ModelCatalog
+{ stt, chat }` del plan de modelos dinámicos, que admite una categoría `realtime` de forma
+aditiva (misma disciplina que el catálogo de eventos, ADR-0009). La heurística de clasificación
+excluye hoy los modelos `*-realtime-*` deliberadamente: la app no puede usarlos todavía.
