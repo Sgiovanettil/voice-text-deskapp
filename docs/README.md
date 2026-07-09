@@ -27,6 +27,7 @@
 | --- | --- |
 | [3-desarrollo/SETUP_DEV.md](3-desarrollo/SETUP_DEV.md) — setup y checklist de smoke test | ✅ al día |
 | [3-desarrollo/DEPLOY_PREPROD.md](3-desarrollo/DEPLOY_PREPROD.md) — proceso de release y firma | ✅ al día |
+| [3-desarrollo/PLAN_MODELOS_DINAMICOS.md](3-desarrollo/PLAN_MODELOS_DINAMICOS.md) — plan de implementación del listado dinámico de modelos por proveedor | 🔜 pendiente de implementar |
 
 > **Changelog:** se genera con git-cliff (`cliff.toml`) al taggear y se publica como cuerpo de
 > cada [GitHub Release](../../releases); no se versiona como `CHANGELOG.md`.
