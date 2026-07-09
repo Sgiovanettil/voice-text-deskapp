@@ -219,6 +219,27 @@ pub async fn test_provider(provider: String, model: String) -> Result<bool, IpcE
     Ok(true)
 }
 
+/// Modelos disponibles del proveedor, consultados en vivo a su API y
+/// clasificados en STT (selector de settings) y chat (post-procesado LLM
+/// futuro, ADR-0014). Sin key guardada devuelve `err.models.noKey` para que
+/// la UI pida configurar la clave en vez de sugerir reintentar.
+#[tauri::command]
+pub async fn list_models(provider: String) -> Result<crate::providers::ModelCatalog, IpcError> {
+    let key = persistence::get_api_key(&provider)?
+        .ok_or_else(|| IpcError::new("api key no configurada", "err.models.noKey"))?;
+    crate::providers::list_models(&provider, key)
+        .await
+        .map_err(|e| {
+            let key = match e {
+                crate::speech::SpeechError::Auth => "err.stt.auth",
+                crate::speech::SpeechError::Network => "err.stt.network",
+                crate::speech::SpeechError::RateLimited => "err.stt.rate",
+                _ => "err.stt.provider",
+            };
+            IpcError::new(e.to_string(), key)
+        })
+}
+
 /// Micrófonos de entrada disponibles, por nombre (ARCHITECTURE §4.3). La UI
 /// los ofrece en un dropdown; el elegido se guarda en `audio.input_device`.
 #[tauri::command]

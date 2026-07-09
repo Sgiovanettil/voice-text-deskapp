@@ -188,7 +188,7 @@ Esquema conceptual:
 ### 4.8 `ipc/`
 Borde Tauri. Dos superficies:
 
-- **Comandos** (frontend → core): `get_settings`, `set_settings`, `set_api_key`, `test_provider`, `get_app_state`. Validación en el borde; errores mapeados a `{ code, error_key }`.
+- **Comandos** (frontend → core): `get_settings`, `set_settings`, `set_api_key`, `test_provider`, `list_models`, `get_app_state`. Validación en el borde; errores mapeados a `{ code, error_key }`.
 - **Eventos** (core → frontend): reenvío 1:1 de los eventos de dominio marcados "UI ✔" en §2, con el mismo nombre y payload (el catálogo de eventos ES el contrato IPC — una sola fuente de verdad, tipos TS generados o espejados en `src/shared/`).
 
 ### 4.9 Frontend (`src/`)

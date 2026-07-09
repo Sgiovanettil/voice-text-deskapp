@@ -80,6 +80,10 @@
       "model": "Modelo",
       "language": "Idioma del dictado",
       "saved": "Preferencia de transcripción guardada.",
+      "modelsRefresh": "Actualizar modelos",
+      "modelsLoading": "Cargando modelos…",
+      "modelsEmpty": "El proveedor no devolvió modelos compatibles.",
+      "modelUnavailable": "{{model}} (no disponible)",
       "languages": {
         "auto": "Detección automática",
         "es": "Español",
@@ -172,6 +176,9 @@
     },
     "config": {
       "invalid": "La configuración guardada no es válida."
+    },
+    "models": {
+      "noKey": "Guarda tu clave de API para ver los modelos disponibles."
     },
     "update": {
       "network": "No se pudo comprobar si hay actualizaciones. Revisa tu conexión.",
