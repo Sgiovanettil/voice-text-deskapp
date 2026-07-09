@@ -9,6 +9,13 @@ export interface Settings {
   delivery: DeliverySettings;
   vad: VadSettings;
   audio: AudioSettings;
+  pricing: PricingSettings;
+}
+
+// Overrides de tarifas para la estimación de gastos (ADR-0015); los defaults
+// viven en el backend (usage::default_rate). Clave "proveedor/modelo".
+export interface PricingSettings {
+  rates: Record<string, number>;
 }
 
 export interface AudioSettings {
@@ -62,4 +69,20 @@ export interface IpcError {
 export interface ModelCatalog {
   stt: string[];
   chat: string[];
+}
+
+// Espejo de usage::UsageEntry / usage::UsageLedger (ADR-0015, snake_case como
+// Settings): acumulado de gastos estimados por (proveedor, modelo, mes).
+export interface UsageEntry {
+  provider: string;
+  model: string;
+  month: string;
+  transcriptions: number;
+  audio_seconds: number;
+  estimated_cost_usd: number;
+}
+
+export interface UsageLedger {
+  schema_version: number;
+  entries: UsageEntry[];
 }

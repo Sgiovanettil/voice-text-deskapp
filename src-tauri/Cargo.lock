@@ -5800,6 +5800,7 @@ dependencies = [
  "arboard",
  "ashpd",
  "async-trait",
+ "chrono",
  "cpal",
  "enigo",
  "futures-util",
