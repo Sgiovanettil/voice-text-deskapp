@@ -1,6 +1,6 @@
 # ADR-0014 — Modos de dictado y post-procesado LLM (v2.x, spec anticipada)
 
-- **Estado:** Aceptada (diseño; implementación diferida a v2.x) · **Fecha:** 2026-07-05
+- **Estado:** Implementada (#78; adelantada de v2.x a v1.x el 2026-07-09) · **Fecha:** 2026-07-05
 
 ## Contexto
 

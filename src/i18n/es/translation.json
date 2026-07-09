@@ -75,6 +75,16 @@
       "clipboard": "Solo copiarlo al portapapeles",
       "saved": "Preferencia guardada."
     },
+    "dictation": {
+      "label": "Modo de dictado",
+      "literal": "Literal: insertar la transcripción tal cual",
+      "mejorado": "Mejorado: la IA limpia muletillas y puntuación sin cambiar el sentido",
+      "prompt": "Prompt: tu voz es una instrucción y la IA redacta el texto",
+      "saved": "Modo de dictado guardado.",
+      "costHint": "Los modos con IA agregan una llamada extra por dictado: algo de latencia y un costo adicional. Si la IA falla, se inserta el texto literal — el dictado nunca se pierde.",
+      "provider": "Proveedor de IA",
+      "model": "Modelo de IA"
+    },
     "stt": {
       "label": "Transcripción",
       "model": "Modelo",
@@ -153,6 +163,7 @@
     "recording": "Grabando… (suelta el atajo para transcribir)",
     "processing": "Procesando audio…",
     "transcribing": "Transcribiendo…",
+    "polishing": "Puliendo con IA…",
     "delivered": "Texto copiado al portapapeles ({{chars}} caracteres) — pégalo con Ctrl+V.",
     "lastTranscript": "Última transcripción:"
   },
@@ -160,6 +171,7 @@
     "listening": "Escuchando…",
     "silence": "En silencio… cerrando",
     "transcribing": "Transcribiendo…",
+    "polishing": "Puliendo con IA…",
     "delivering": "Insertando…",
     "done": "Listo",
     "idle": "En espera"
@@ -198,6 +210,12 @@
     },
     "usage": {
       "write": "No se pudo escribir el registro de gastos."
+    },
+    "llm": {
+      "auth": "La clave de API del proveedor de IA no es válida o no está configurada; se insertó el texto literal.",
+      "network": "No se pudo conectar con el proveedor de IA; se insertó el texto literal.",
+      "rate": "Se alcanzó el límite de solicitudes del proveedor de IA; se insertó el texto literal.",
+      "provider": "El proveedor de IA devolvió un error; se insertó el texto literal."
     },
     "update": {
       "network": "No se pudo comprobar si hay actualizaciones. Revisa tu conexión.",

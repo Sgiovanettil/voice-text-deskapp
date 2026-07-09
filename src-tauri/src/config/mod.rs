@@ -23,6 +23,19 @@ pub struct Settings {
     pub audio: AudioSettings,
     #[serde(default)]
     pub pricing: PricingSettings,
+    #[serde(default)]
+    pub llm: LlmSettings,
+}
+
+/// Proveedor y modelo del post-procesado LLM (ADR-0014). Solo se usa cuando
+/// `general.dictation_mode` no es `"literal"`. La credencial es la misma API
+/// key del proveedor en el keyring (no hay key aparte para chat).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct LlmSettings {
+    #[serde(default = "default_provider")]
+    pub provider: String,
+    #[serde(default = "default_llm_model")]
+    pub model: String,
 }
 
 /// Overrides de tarifas para la estimación de gastos (ADR-0015). Los
@@ -62,6 +75,11 @@ pub struct GeneralSettings {
     /// VAD o al tope de 120 s.
     #[serde(default = "default_activation_mode")]
     pub activation_mode: String,
+    /// Modo de dictado (ADR-0014): `"literal"` (default, sin LLM),
+    /// `"mejorado"` (limpieza con prompt fijo) o `"prompt"` (la voz es una
+    /// instrucción). Desconocidos caen a literal.
+    #[serde(default = "default_dictation_mode")]
+    pub dictation_mode: String,
     /// Posición del overlay en píxeles físicos; `None` = abajo-centro.
     #[serde(default)]
     pub overlay_position: Option<OverlayPos>,
@@ -133,6 +151,14 @@ fn default_stt_language() -> String {
 fn default_activation_mode() -> String {
     "ptt".into()
 }
+fn default_dictation_mode() -> String {
+    "literal".into()
+}
+fn default_llm_model() -> String {
+    // Modelo económico de texto (ADR-0014); el usuario puede cambiarlo por
+    // cualquiera del catálogo `chat` de `list_models`.
+    "gpt-4o-mini".into()
+}
 fn default_vad_threshold() -> f32 {
     0.5
 }
@@ -159,6 +185,16 @@ impl Default for Settings {
             vad: VadSettings::default(),
             audio: AudioSettings::default(),
             pricing: PricingSettings::default(),
+            llm: LlmSettings::default(),
+        }
+    }
+}
+
+impl Default for LlmSettings {
+    fn default() -> Self {
+        Self {
+            provider: default_provider(),
+            model: default_llm_model(),
         }
     }
 }
@@ -173,6 +209,7 @@ impl Default for GeneralSettings {
             output_mode: default_output_mode(),
             activation_mode: default_activation_mode(),
             overlay_position: None,
+            dictation_mode: default_dictation_mode(),
         }
     }
 }

@@ -148,6 +148,12 @@ function Overlay() {
         case "transcriptionStarted":
           setState({ phase: "transcribing", message: t("overlay.transcribing") });
           break;
+        // Etapa LLM opcional (ADR-0014). El fallo del LLM no es error del
+        // ciclo: siempre lo sigue una entrega degradada con el literal, así
+        // que solo se comunica la latencia extra ("puliendo…").
+        case "postProcessingStarted":
+          setState({ phase: "transcribing", message: t("overlay.polishing") });
+          break;
         case "textDeliveryStarted":
           setState({ phase: "delivering", message: t("overlay.delivering") });
           break;

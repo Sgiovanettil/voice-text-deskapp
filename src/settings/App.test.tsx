@@ -20,6 +20,7 @@ function defaultInvoke(cmd: string): Promise<unknown> {
           start_minimized: true,
           output_mode: "insert",
           activation_mode: "toggle",
+          dictation_mode: "literal",
           overlay_position: null,
         },
         stt: { provider: "openai", model: "gpt-4o-mini-transcribe", language: "auto" },
@@ -27,6 +28,7 @@ function defaultInvoke(cmd: string): Promise<unknown> {
         vad: { threshold: 0.5, silence_hangover_ms: 1200 },
         audio: { input_device: null },
         pricing: { rates: {} },
+        llm: { provider: "openai", model: "gpt-4o-mini" },
       });
     case "get_api_key_status":
       return Promise.resolve({ isSet: true, masked: "…1234" });
@@ -217,6 +219,57 @@ describe("Settings App", () => {
     await waitFor(() => {
       expect(invokeMock).toHaveBeenCalledWith("list_models", { provider: "openai" });
     });
+  });
+
+  it("cambiar el modo de dictado guarda el setting", async () => {
+    render(<App />);
+    // La sección General es la inicial; el modo literal viene marcado.
+    const improved = await screen.findByRole("radio", {
+      name: /Mejorado: la IA limpia muletillas/,
+    });
+    expect(screen.getByRole("radio", { name: /Literal: insertar/ })).toBeChecked();
+
+    fireEvent.click(improved);
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith(
+        "set_settings",
+        expect.objectContaining({
+          settings: expect.objectContaining({
+            general: expect.objectContaining({ dictation_mode: "mejorado" }),
+          }),
+        }),
+      );
+    });
+  });
+
+  it("el modo con IA muestra el selector de modelo con el catálogo chat", async () => {
+    invokeMock.mockImplementation((cmd: string) => {
+      if (cmd === "get_settings")
+        return defaultInvoke(cmd).then((s) => {
+          const base = s as { general: Record<string, unknown> } & Record<string, unknown>;
+          return { ...base, general: { ...base.general, dictation_mode: "mejorado" } };
+        });
+      return defaultInvoke(cmd);
+    });
+
+    render(<App />);
+    // Pide el catálogo del proveedor LLM y puebla el select con los chat.
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith("list_models", { provider: "openai" });
+    });
+    const modelSelect = await screen.findByRole("combobox", { name: "Modelo de IA" });
+    await waitFor(() => {
+      expect(screen.getByRole("option", { name: "gpt-4o" })).toBeInTheDocument();
+    });
+    expect(modelSelect).toHaveValue("gpt-4o-mini");
+    // Los modelos STT no se cuelan en el selector de IA.
+    expect(screen.queryByRole("option", { name: "whisper-1" })).not.toBeInTheDocument();
+  });
+
+  it("en modo literal no se muestra el selector de modelo de IA", async () => {
+    render(<App />);
+    await screen.findByRole("radio", { name: /Literal: insertar/ });
+    expect(screen.queryByRole("combobox", { name: "Modelo de IA" })).not.toBeInTheDocument();
   });
 
   it("muestra el desglose de gastos del mes en curso y el histórico", async () => {

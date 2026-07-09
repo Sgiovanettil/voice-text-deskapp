@@ -5,13 +5,13 @@
 //! mantiene el espejo de estado consultable de `AppState`.
 
 use std::sync::mpsc::{channel, RecvTimeoutError, Sender};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::audio::{AudioData, Recorder, VadConfig};
 use crate::core::events::{DomainEvent, OverlayMode, OverlayOutcome};
-use crate::core::state_machine::{ActivationMode, Command, CoreState, StateMachine};
+use crate::core::state_machine::{ActivationMode, Command, CoreState, DictationMode, StateMachine};
 use crate::delivery::DeliveryMode;
 use crate::ipc::commands::AppState;
 use crate::speech::TranscribeOptions;
@@ -58,18 +58,19 @@ pub fn spawn(app: AppHandle) -> Sender<DomainEvent> {
                 let _ = app.emit("domain-event", ev);
             }
 
-            // El modo de activación vigente se refresca desde settings antes
-            // de decidir: cambiarlo en la UI aplica al ciclo siguiente (o al
-            // corte del actual) sin reiniciar.
+            // Los modos vigentes (activación y dictado) se refrescan desde
+            // settings antes de decidir: cambiarlos en la UI aplica al ciclo
+            // siguiente (o a la etapa siguiente del actual) sin reiniciar.
             if let Some(state) = app.try_state::<AppState>() {
-                let mode = state
-                    .settings
-                    .lock()
-                    .expect("settings lock")
-                    .general
-                    .activation_mode
-                    .clone();
+                let (mode, dictation) = {
+                    let settings = state.settings.lock().expect("settings lock");
+                    (
+                        settings.general.activation_mode.clone(),
+                        settings.general.dictation_mode.clone(),
+                    )
+                };
                 sm.set_mode(ActivationMode::from_setting(&mode));
+                sm.set_dictation_mode(DictationMode::from_setting(&dictation));
             }
 
             let prev_state = sm.state();
@@ -193,6 +194,9 @@ pub fn spawn(app: AppHandle) -> Sender<DomainEvent> {
                         start_transcription(&app, audio, self_tx.clone());
                     }
                 }
+                Command::StartPostProcessing { text } => {
+                    start_post_processing(&app, text, self_tx.clone());
+                }
                 Command::DeliverText { text } => {
                     deliver_text(&app, &text, &self_tx);
                 }
@@ -245,6 +249,120 @@ fn deliver_text(app: &AppHandle, text: &str, result_tx: &Sender<DomainEvent>) {
             });
         }
     }
+}
+
+/// Efecto asíncrono: pasada LLM del dictado (ADR-0014, modos mejorado y
+/// prompt). Degradación segura en TODOS los caminos de fallo (sin key,
+/// keyring roto, error del LLM): se emite `PostProcessingFailed` como aviso
+/// y luego `PostProcessingCompleted` degradado con el texto literal — un
+/// dictado jamás se pierde por el post-procesado.
+fn start_post_processing(app: &AppHandle, text: String, result_tx: Sender<DomainEvent>) {
+    let state = app.state::<AppState>();
+    let (mode, provider_id, model, language) = {
+        let settings = state.settings.lock().expect("settings lock");
+        let lang = match settings.stt.language.as_str() {
+            "auto" => None,
+            other => Some(other.to_string()),
+        };
+        (
+            settings.general.dictation_mode.clone(),
+            settings.llm.provider.clone(),
+            settings.llm.model.clone(),
+            lang,
+        )
+    };
+
+    // Falla antes de llamar al LLM (key ausente o keyring roto): aviso +
+    // entrega degradada inmediata del literal.
+    let degrade = |error_key: &str, detail: String, tx: &Sender<DomainEvent>, literal: &str| {
+        let _ = tx.send(DomainEvent::PostProcessingFailed {
+            error_key: error_key.into(),
+            retryable: false,
+            detail,
+        });
+        let _ = tx.send(DomainEvent::PostProcessingCompleted {
+            text: literal.into(),
+            latency_ms: 0,
+            degraded: true,
+        });
+    };
+
+    let api_key = match crate::persistence::get_api_key(&provider_id) {
+        Ok(Some(key)) => key,
+        Ok(None) => {
+            degrade(
+                "err.llm.auth",
+                "api key no configurada".into(),
+                &result_tx,
+                &text,
+            );
+            return;
+        }
+        Err(e) => {
+            degrade("err.keyring.unavailable", e.to_string(), &result_tx, &text);
+            return;
+        }
+    };
+
+    let _ = result_tx.send(DomainEvent::PostProcessingStarted {
+        provider_id: provider_id.clone(),
+        model: model.clone(),
+        mode: mode.clone(),
+    });
+
+    tauri::async_runtime::spawn(async move {
+        let system = if mode == "prompt" {
+            crate::llm::prompts::instruction_system_prompt(language.as_deref())
+        } else {
+            crate::llm::prompts::improve_system_prompt(language.as_deref())
+        };
+        let processor = crate::llm::resolve(&provider_id, api_key);
+        let request = crate::llm::ChatRequest {
+            model,
+            system,
+            user: text.clone(),
+            timeout: PROVIDER_TIMEOUT,
+        };
+        let started = Instant::now();
+        match processor.process(request).await {
+            Ok(processed) if !processed.is_empty() => {
+                let _ = result_tx.send(DomainEvent::PostProcessingCompleted {
+                    text: processed,
+                    latency_ms: started.elapsed().as_millis() as u64,
+                    degraded: false,
+                });
+            }
+            // Respuesta vacía del LLM: mejor el literal que borrar el dictado.
+            Ok(_) => {
+                let _ = result_tx.send(DomainEvent::PostProcessingFailed {
+                    error_key: "err.llm.provider".into(),
+                    retryable: false,
+                    detail: "respuesta vacía".into(),
+                });
+                let _ = result_tx.send(DomainEvent::PostProcessingCompleted {
+                    text,
+                    latency_ms: started.elapsed().as_millis() as u64,
+                    degraded: true,
+                });
+            }
+            Err(e) => {
+                let _ = result_tx.send(DomainEvent::PostProcessingFailed {
+                    error_key: crate::llm::error_key(&e).into(),
+                    retryable: matches!(
+                        e,
+                        crate::speech::SpeechError::Network
+                            | crate::speech::SpeechError::RateLimited
+                    ),
+                    detail: e.to_string(),
+                });
+                let _ = result_tx.send(DomainEvent::PostProcessingCompleted {
+                    text,
+                    latency_ms: started.elapsed().as_millis() as u64,
+                    degraded: true,
+                });
+            }
+        }
+    });
 }
 
 /// Efecto asíncrono: transcripción vía provider. El resultado vuelve al
