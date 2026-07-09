@@ -18,5 +18,5 @@ Formato: contexto → decisión → consecuencias. Estados: Propuesta · Aceptad
 | [0012](0012-segundo-proveedor-stt-groq.md) | Segundo proveedor STT: Groq (v1.x) | Implementada (v1.x, #58; validada en Windows) |
 | [0013](0013-diccionario-personal.md) | Diccionario personal / reemplazos (v1.x) | Aceptada (diseño; implementación v1.x) |
 | [0014](0014-modos-dictado-postprocesado-llm.md) | Modos de dictado y post-procesado LLM (v2.x) | Aceptada (diseño; implementación v2.x) |
-| [0015](0015-pantalla-gastos-estimacion-local.md) | Pantalla de gastos por API key con estimación local (v1.3.0) | Aceptada (diseño; implementación v1.3.0) |
+| [0015](0015-pantalla-gastos-estimacion-local.md) | Pantalla de gastos por API key con estimación local (v1.3.0) | Implementada (v1.3.0, #77) |
 | [0016](0016-listado-dinamico-de-modelos.md) | Listado dinámico de modelos por proveedor (v1.x) | Implementada (v1.x, #73) |

@@ -12,13 +12,14 @@ import type {
   ModelCatalog,
   Settings,
   SttSettings,
+  UsageLedger,
   VadSettings,
 } from "../shared/settings";
 import "./App.css";
 
 type Feedback = { kind: "ok" | "error"; text: string } | null;
 type CycleStatus = { kind: "idle" | "busy" | "ok" | "error"; text: string };
-type SectionId = "general" | "recognition" | "shortcuts" | "about";
+type SectionId = "general" | "recognition" | "shortcuts" | "usage" | "about";
 type UpdatePhase = "idle" | "checking" | "available" | "downloading" | "error";
 
 // Opciones fijas expuestas en la UI. Los ids de proveedor/modelo son
@@ -42,7 +43,7 @@ const SILENCE_PAUSES_MS = [1200, 2000, 3000] as const;
 // (300/500/700) porque los puntos no sirven en claves de i18next.
 const VAD_THRESHOLDS = [0.3, 0.5, 0.7] as const;
 const UI_LANGUAGES = ["es", "en"];
-const SECTIONS: SectionId[] = ["general", "recognition", "shortcuts", "about"];
+const SECTIONS: SectionId[] = ["general", "recognition", "shortcuts", "usage", "about"];
 
 function App() {
   const { t, i18n } = useTranslation();
@@ -76,6 +77,24 @@ function App() {
   const [modelsLoading, setModelsLoading] = useState(false);
   // errorKey i18n del último fetch fallido (err.models.noKey, err.stt.*).
   const [modelsError, setModelsError] = useState<string | null>(null);
+
+  // Ledger de gastos estimados y tarifas efectivas (ADR-0015); se cargan al
+  // entrar a la sección Gastos.
+  const [usage, setUsage] = useState<UsageLedger | null>(null);
+  const [usageRates, setUsageRates] = useState<Record<string, number> | null>(null);
+
+  const fetchUsage = useCallback(() => {
+    invoke<UsageLedger>("get_usage")
+      .then(setUsage)
+      .catch(() => setUsage(null));
+    invoke<Record<string, number>>("get_usage_rates")
+      .then(setUsageRates)
+      .catch(() => setUsageRates(null));
+  }, []);
+
+  useEffect(() => {
+    if (section === "usage") fetchUsage();
+  }, [section, fetchUsage]);
 
   const fetchModels = useCallback((forProvider: string) => {
     setModelsLoading(true);
@@ -236,9 +255,44 @@ function App() {
       .catch(showError);
   };
 
+  // Reset manual del acumulado de gastos (ADR-0015): por proveedor o global.
+  const resetUsage = (forProvider?: string) => {
+    invoke<UsageLedger>("reset_usage", { provider: forProvider ?? null })
+      .then((ledger) => {
+        setUsage(ledger);
+        setFeedback({ kind: "ok", text: t("settings.usage.resetDone") });
+      })
+      .catch(showError);
+  };
+
+  // Guarda un override de tarifa (USD/min) en settings.pricing.rates; aplica
+  // a los dictados siguientes, el histórico no se reescribe.
+  const saveRate = (key: string, value: number) => {
+    if (!settings || !Number.isFinite(value) || value < 0) return;
+    const rates = { ...settings.pricing.rates, [key]: value };
+    const updated: Settings = { ...settings, pricing: { rates } };
+    invoke("set_settings", { settings: updated })
+      .then(() => {
+        setSettings(updated);
+        setUsageRates((prev) => ({ ...(prev ?? {}), [key]: value }));
+        setFeedback({ kind: "ok", text: t("settings.usage.rateSaved") });
+      })
+      .catch(showError);
+  };
+
   // Proveedor STT elegido y su nombre de marca para las cadenas de la UI.
   const provider = settings?.stt.provider ?? "openai";
   const providerName = PROVIDER_NAMES[provider] ?? provider;
+
+  // Derivadas de la pantalla de gastos: mes local en curso y agregados por
+  // proveedor (el ledger llega plano por (proveedor, modelo, mes)).
+  const now = new Date();
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const usageEntries = usage?.entries ?? [];
+  const usageProviders = [...new Set(usageEntries.map((e) => e.provider))].sort();
+  const monthEntries = usageEntries.filter((e) => e.month === currentMonth);
+  const fmtUsd = (v: number) => v.toFixed(4);
+  const fmtMin = (s: number) => (s / 60).toFixed(1);
 
   // Modelos STT del catálogo vivo; el modelo guardado se conserva como opción
   // extra si el proveedor ya no lo lista (no se pisa config silenciosamente).
@@ -776,6 +830,100 @@ function App() {
                   {t("settings.hotkey.save")}
                 </button>
               </div>
+            </section>
+          </>
+        )}
+
+        {section === "usage" && (
+          <>
+            <h2 className="panel-title">{t("settings.nav.usage")}</h2>
+
+            <section className="group">
+              <h3>{t("settings.usage.currentMonth", { month: currentMonth })}</h3>
+              <p className="hint">{t("settings.usage.disclaimer")}</p>
+              {monthEntries.length === 0 && <p className="hint">{t("settings.usage.empty")}</p>}
+              {usageProviders.map((p) => {
+                const rows = monthEntries.filter((e) => e.provider === p);
+                if (rows.length === 0) return null;
+                const cost = rows.reduce((acc, e) => acc + e.estimated_cost_usd, 0);
+                return (
+                  <div key={p} className="usage-provider">
+                    <div className="usage-row usage-row-head">
+                      <span>{PROVIDER_NAMES[p] ?? p}</span>
+                      <span>{t("settings.usage.cost", { cost: fmtUsd(cost) })}</span>
+                    </div>
+                    {rows.map((e) => (
+                      <div key={e.model} className="usage-row">
+                        <span className="usage-model">{e.model}</span>
+                        <span>
+                          {t("settings.usage.detail", {
+                            count: e.transcriptions,
+                            minutes: fmtMin(e.audio_seconds),
+                            cost: fmtUsd(e.estimated_cost_usd),
+                          })}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </section>
+
+            <section className="group">
+              <h3>{t("settings.usage.history")}</h3>
+              {usageEntries.length === 0 && <p className="hint">{t("settings.usage.empty")}</p>}
+              {usageProviders.map((p) => {
+                const rows = usageEntries.filter((e) => e.provider === p);
+                const cost = rows.reduce((acc, e) => acc + e.estimated_cost_usd, 0);
+                const seconds = rows.reduce((acc, e) => acc + e.audio_seconds, 0);
+                return (
+                  <div key={p} className="usage-row">
+                    <span>{PROVIDER_NAMES[p] ?? p}</span>
+                    <span>
+                      {t("settings.usage.detailTotal", {
+                        minutes: fmtMin(seconds),
+                        cost: fmtUsd(cost),
+                      })}
+                    </span>
+                    <button type="button" onClick={() => resetUsage(p)}>
+                      {t("settings.usage.resetProvider")}
+                    </button>
+                  </div>
+                );
+              })}
+              {usageEntries.length > 0 && (
+                <div className="row">
+                  <button type="button" onClick={() => resetUsage()}>
+                    {t("settings.usage.resetAll")}
+                  </button>
+                </div>
+              )}
+            </section>
+
+            <section className="group">
+              <h3>{t("settings.usage.rates")}</h3>
+              <p className="hint">{t("settings.usage.ratesHint")}</p>
+              {Object.entries(usageRates ?? {})
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([key, rate]) => (
+                  <label key={key} className="field usage-rate">
+                    {key}
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.0001"
+                      defaultValue={rate}
+                      aria-label={key}
+                      disabled={!settings}
+                      onBlur={(e) => {
+                        const value = Number(e.target.value);
+                        if (Number.isFinite(value) && value >= 0 && value !== rate) {
+                          saveRate(key, value);
+                        }
+                      }}
+                    />
+                  </label>
+                ))}
             </section>
           </>
         )}

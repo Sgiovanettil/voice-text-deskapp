@@ -251,18 +251,24 @@ fn deliver_text(app: &AppHandle, text: &str, result_tx: &Sender<DomainEvent>) {
 /// orquestador como evento — nunca toca la máquina de estados directamente.
 fn start_transcription(app: &AppHandle, audio: AudioData, result_tx: Sender<DomainEvent>) {
     let state = app.state::<AppState>();
-    let (provider_id, model, language) = {
+    let (provider_id, model, language, rate_per_min) = {
         let settings = state.settings.lock().expect("settings lock");
         let lang = match settings.stt.language.as_str() {
             "auto" => None,
             other => Some(other.to_string()),
         };
+        // Tarifa vigente al momento del dictado: el gasto se acumula con ella
+        // (ADR-0015) — editar una tarifa después no reescribe el histórico.
+        let rate =
+            crate::usage::effective_rate(&settings, &settings.stt.provider, &settings.stt.model);
         (
             settings.stt.provider.clone(),
             settings.stt.model.clone(),
             lang,
+            rate,
         )
     };
+    let config_dir = state.config_dir.clone();
 
     let api_key = match crate::persistence::get_api_key(&provider_id) {
         Ok(Some(key)) => key,
@@ -290,18 +296,32 @@ fn start_transcription(app: &AppHandle, audio: AudioData, result_tx: Sender<Doma
     });
 
     tauri::async_runtime::spawn(async move {
+        let audio_seconds = audio.duration_ms() as f64 / 1000.0;
         let provider = crate::providers::resolve(&provider_id, api_key);
         let opts = TranscribeOptions {
             language,
-            model,
+            model: model.clone(),
             timeout: PROVIDER_TIMEOUT,
         };
         let event = match provider.transcribe(audio, opts).await {
-            Ok(transcript) => DomainEvent::TranscriptionCompleted {
-                text: transcript.text,
-                latency_ms: transcript.latency.as_millis() as u64,
-                provider_id: provider_id.clone(),
-            },
+            Ok(transcript) => {
+                // Ledger de gastos (ADR-0015): best-effort — un fallo al
+                // escribir usage.json jamás afecta el dictado.
+                if let Err(e) = crate::usage::record(
+                    &config_dir,
+                    &provider_id,
+                    &model,
+                    audio_seconds,
+                    rate_per_min,
+                ) {
+                    tracing::warn!(error = %e, "no se pudo registrar el uso en usage.json");
+                }
+                DomainEvent::TranscriptionCompleted {
+                    text: transcript.text,
+                    latency_ms: transcript.latency.as_millis() as u64,
+                    provider_id: provider_id.clone(),
+                }
+            }
             Err(e) => DomainEvent::TranscriptionFailed {
                 error_key: match &e {
                     crate::speech::SpeechError::Auth => "err.stt.auth",

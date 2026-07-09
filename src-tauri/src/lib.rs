@@ -17,6 +17,7 @@ mod providers;
 mod speech;
 mod tray;
 mod updater;
+mod usage;
 
 use tauri::{Emitter, Manager};
 
@@ -200,6 +201,9 @@ pub fn run() {
             ipc::commands::test_provider,
             ipc::commands::list_models,
             ipc::commands::list_input_devices,
+            ipc::commands::get_usage,
+            ipc::commands::reset_usage,
+            ipc::commands::get_usage_rates,
             ipc::commands::get_app_state,
             ipc::commands::start_mic_test,
             ipc::commands::stop_mic_test,
