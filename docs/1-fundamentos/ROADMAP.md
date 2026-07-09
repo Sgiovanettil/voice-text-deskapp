@@ -109,7 +109,7 @@ quedó construida y firmada, a la espera de publicar el borrador.
 | Inglés en la UI | ⏳ Pendiente |
 | Ampliación de la matriz Wayland (compositores wlroots) | ⏳ Pendiente |
 | Descubrimiento dinámico de modelos (`GET /v1/models` por proveedor) | ✅ **Implementado** (PR #73, ADR-0016): [PLAN_MODELOS_DINAMICOS.md](../3-desarrollo/PLAN_MODELOS_DINAMICOS.md) — pendiente validación en Windows |
-| Pantalla de gastos con estimación local ([ADR-0015](../2-arquitectura/DECISIONS/0015-pantalla-gastos-estimacion-local.md), issue #60) → **v1.3.0** | 🔨 **En curso** — ADR aceptado, implementación en desarrollo |
+| Pantalla de gastos con estimación local ([ADR-0015](../2-arquitectura/DECISIONS/0015-pantalla-gastos-estimacion-local.md), issue #60) → **v1.3.0** | ✅ **Implementado** (PR #77) — pendiente validación en Windows |
 
 #### Toggle + VAD — detalle de lo entregado (2026-07-05)
 

@@ -115,7 +115,23 @@
       "general": "General",
       "recognition": "Reconocimiento",
       "shortcuts": "Atajos",
+      "usage": "Gastos",
       "about": "Acerca de"
+    },
+    "usage": {
+      "currentMonth": "Mes en curso ({{month}})",
+      "disclaimer": "Estimación local calculada con la duración del audio y las tarifas de esta pantalla — no es la factura del proveedor.",
+      "empty": "Aún no hay dictados registrados.",
+      "cost": "US$ {{cost}}",
+      "detail": "{{count}} dictados · {{minutes}} min · US$ {{cost}}",
+      "detailTotal": "{{minutes}} min · US$ {{cost}}",
+      "history": "Histórico total",
+      "resetProvider": "Reiniciar",
+      "resetAll": "Reiniciar todo el acumulado",
+      "resetDone": "Acumulado de gastos reiniciado.",
+      "rates": "Tarifas (USD por minuto de audio)",
+      "ratesHint": "Edita una tarifa si el proveedor cambió sus precios; aplica a los dictados siguientes, el histórico no se recalcula.",
+      "rateSaved": "Tarifa guardada."
     },
     "about": {
       "version": "Versión"
@@ -179,6 +195,9 @@
     },
     "models": {
       "noKey": "Guarda tu clave de API para ver los modelos disponibles."
+    },
+    "usage": {
+      "write": "No se pudo escribir el registro de gastos."
     },
     "update": {
       "network": "No se pudo comprobar si hay actualizaciones. Revisa tu conexión.",

@@ -55,6 +55,8 @@ enigo = "0.6"
 arboard = "3"
 reqwest = { version = "0.13", default-features = false, features = ["json", "multipart", "rustls"] }
 voice_activity_detector = "0.2.1"
+# Solo para el mes local (YYYY-MM) del ledger de gastos (ADR-0015).
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
 
 # ashpd (portals XDG: GlobalShortcuts para R1, RemoteDesktop para M2) es
 # específico de Linux/D-Bus — depende de std::os::unix, no compila en Windows.

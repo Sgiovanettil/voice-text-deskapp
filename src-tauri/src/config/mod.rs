@@ -21,6 +21,18 @@ pub struct Settings {
     pub vad: VadSettings,
     #[serde(default)]
     pub audio: AudioSettings,
+    #[serde(default)]
+    pub pricing: PricingSettings,
+}
+
+/// Overrides de tarifas para la estimación de gastos (ADR-0015). Los
+/// defaults viven en `usage::default_rate`; aquí solo lo que el usuario
+/// cambió.
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub struct PricingSettings {
+    /// USD por minuto de audio, por clave `"proveedor/modelo"`.
+    #[serde(default)]
+    pub rates: std::collections::HashMap<String, f64>,
 }
 
 /// Preferencias de captura (ARCHITECTURE §4.3).
@@ -146,6 +158,7 @@ impl Default for Settings {
             delivery: DeliverySettings::default(),
             vad: VadSettings::default(),
             audio: AudioSettings::default(),
+            pricing: PricingSettings::default(),
         }
     }
 }

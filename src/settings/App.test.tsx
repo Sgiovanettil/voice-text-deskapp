@@ -1,6 +1,12 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+// Mes local YYYY-MM, igual que lo calcula la app (y el backend).
+function currentMonth(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
 // jsdom no tiene el runtime de Tauri: se simula el borde IPC por comando.
 function defaultInvoke(cmd: string): Promise<unknown> {
   switch (cmd) {
@@ -20,6 +26,7 @@ function defaultInvoke(cmd: string): Promise<unknown> {
         delivery: { paste_combo_overrides: {}, fallback_typing: false },
         vad: { threshold: 0.5, silence_hangover_ms: 1200 },
         audio: { input_device: null },
+        pricing: { rates: {} },
       });
     case "get_api_key_status":
       return Promise.resolve({ isSet: true, masked: "…1234" });
@@ -30,6 +37,35 @@ function defaultInvoke(cmd: string): Promise<unknown> {
         stt: ["gpt-4o-mini-transcribe", "gpt-4o-transcribe", "whisper-1"],
         chat: ["gpt-4o", "gpt-4o-mini"],
       });
+    case "get_usage":
+      return Promise.resolve({
+        schema_version: 1,
+        entries: [
+          {
+            provider: "openai",
+            model: "gpt-4o-mini-transcribe",
+            month: currentMonth(),
+            transcriptions: 3,
+            audio_seconds: 180,
+            estimated_cost_usd: 0.009,
+          },
+          {
+            provider: "groq",
+            model: "whisper-large-v3-turbo",
+            month: "2026-01",
+            transcriptions: 5,
+            audio_seconds: 300,
+            estimated_cost_usd: 0.00335,
+          },
+        ],
+      });
+    case "get_usage_rates":
+      return Promise.resolve({
+        "openai/gpt-4o-mini-transcribe": 0.003,
+        "groq/whisper-large-v3-turbo": 0.00067,
+      });
+    case "reset_usage":
+      return Promise.resolve({ schema_version: 1, entries: [] });
     case "set_settings":
     case "start_mic_test":
     case "stop_mic_test":
@@ -180,6 +216,55 @@ describe("Settings App", () => {
     fireEvent.click(screen.getByRole("button", { name: "Actualizar modelos" }));
     await waitFor(() => {
       expect(invokeMock).toHaveBeenCalledWith("list_models", { provider: "openai" });
+    });
+  });
+
+  it("muestra el desglose de gastos del mes en curso y el histórico", async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Gastos" }));
+
+    // Mes en curso: solo la entrada de OpenAI (la de Groq es de otro mes).
+    await screen.findByText("3 dictados · 3.0 min · US$ 0.0090");
+    expect(screen.getByText("gpt-4o-mini-transcribe")).toBeInTheDocument();
+    // Histórico: ambos proveedores con su total.
+    expect(screen.getByText("5.0 min · US$ 0.0034")).toBeInTheDocument();
+    expect(screen.getByText("Groq")).toBeInTheDocument();
+  });
+
+  it("reinicia el acumulado de gastos", async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Gastos" }));
+    const resetAll = await screen.findByRole("button", {
+      name: "Reiniciar todo el acumulado",
+    });
+
+    invokeMock.mockClear();
+    fireEvent.click(resetAll);
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith("reset_usage", { provider: null });
+    });
+    // Con el ledger vacío desaparece el desglose.
+    await waitFor(() => {
+      expect(screen.queryByText("gpt-4o-mini-transcribe")).not.toBeInTheDocument();
+    });
+  });
+
+  it("editar una tarifa guarda el override en settings", async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Gastos" }));
+    const rateInput = await screen.findByLabelText("openai/gpt-4o-mini-transcribe");
+
+    fireEvent.change(rateInput, { target: { value: "0.005" } });
+    fireEvent.blur(rateInput);
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith(
+        "set_settings",
+        expect.objectContaining({
+          settings: expect.objectContaining({
+            pricing: { rates: { "openai/gpt-4o-mini-transcribe": 0.005 } },
+          }),
+        }),
+      );
     });
   });
 

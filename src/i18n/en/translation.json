@@ -115,7 +115,23 @@
       "general": "General",
       "recognition": "Recognition",
       "shortcuts": "Shortcuts",
+      "usage": "Spending",
       "about": "About"
+    },
+    "usage": {
+      "currentMonth": "Current month ({{month}})",
+      "disclaimer": "Local estimate computed from audio duration and the rates on this screen — it is not the provider's invoice.",
+      "empty": "No dictations recorded yet.",
+      "cost": "US$ {{cost}}",
+      "detail": "{{count}} dictations · {{minutes}} min · US$ {{cost}}",
+      "detailTotal": "{{minutes}} min · US$ {{cost}}",
+      "history": "All-time total",
+      "resetProvider": "Reset",
+      "resetAll": "Reset all accumulated data",
+      "resetDone": "Spending data reset.",
+      "rates": "Rates (USD per audio minute)",
+      "ratesHint": "Edit a rate if the provider changed its prices; it applies to the next dictations, history is not recalculated.",
+      "rateSaved": "Rate saved."
     },
     "about": {
       "version": "Version"
@@ -179,6 +195,9 @@
     },
     "models": {
       "noKey": "Save your API key to see the available models."
+    },
+    "usage": {
+      "write": "Could not write the spending record."
     },
     "update": {
       "network": "Couldn't check for updates. Check your connection.",

@@ -247,6 +247,33 @@ pub fn list_input_devices() -> Vec<String> {
     crate::audio::list_input_devices()
 }
 
+/// Ledger de gastos estimados (ADR-0015), leído bajo demanda por la pantalla
+/// de gastos.
+#[tauri::command]
+pub fn get_usage(state: State<'_, AppState>) -> crate::usage::UsageLedger {
+    crate::usage::load(&state.config_dir)
+}
+
+/// Reset manual del acumulado (ADR-0015): con `provider` borra solo ese
+/// proveedor; sin él, todo. Devuelve el ledger resultante.
+#[tauri::command]
+pub fn reset_usage(
+    state: State<'_, AppState>,
+    provider: Option<String>,
+) -> Result<crate::usage::UsageLedger, IpcError> {
+    crate::usage::reset(&state.config_dir, provider.as_deref())
+        .map_err(|e| IpcError::new(e.to_string(), "err.usage.write"))
+}
+
+/// Tarifas efectivas (USD/min) por clave `proveedor/modelo`: defaults en
+/// código fusionados con los overrides de `settings.pricing.rates`. La UI
+/// edita overrides vía `set_settings`.
+#[tauri::command]
+pub fn get_usage_rates(state: State<'_, AppState>) -> std::collections::HashMap<String, f64> {
+    let settings = state.settings.lock().expect("settings lock");
+    crate::usage::effective_rates(&settings)
+}
+
 #[tauri::command]
 pub fn get_app_state(state: State<'_, AppState>) -> String {
     let s = match *state.core_state.lock().expect("core state lock") {

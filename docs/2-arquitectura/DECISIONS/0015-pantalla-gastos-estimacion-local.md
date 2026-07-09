@@ -1,6 +1,6 @@
 # ADR-0015 — Pantalla de gastos por API key con estimación local (v1.3.0)
 
-- **Estado:** Aceptada (diseño; implementación v1.3.0) · **Fecha:** 2026-07-09 (borrador 2026-07-05, issue #60)
+- **Estado:** Implementada (v1.3.0, #77) · **Fecha:** 2026-07-09 (borrador 2026-07-05, issue #60)
 
 ## Contexto
 

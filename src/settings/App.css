@@ -527,3 +527,50 @@ button:focus-visible {
     transition: none;
   }
 }
+
+/* ===== Pantalla de gastos (ADR-0015) ===== */
+.usage-provider {
+  margin-bottom: 10px;
+}
+
+.usage-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 5px 0;
+  font-size: 0.86rem;
+  color: var(--ink-dim);
+  border-bottom: 1px solid var(--edge);
+}
+
+.usage-row:last-child {
+  border-bottom: none;
+}
+
+.usage-row-head {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.usage-model {
+  font-family: ui-monospace, monospace;
+  font-size: 0.8rem;
+}
+
+.usage-rate {
+  grid-template-columns: 1fr 128px;
+  font-family: ui-monospace, monospace;
+  font-size: 0.8rem;
+}
+
+.usage-rate input {
+  padding: 6px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--edge-soft);
+  font-family: inherit;
+  font-size: 0.84rem;
+  background-color: var(--field);
+  color: var(--ink);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.35);
+}
