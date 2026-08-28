@@ -73,3 +73,10 @@ insta = { version = "1", features = ["json"] }
 panic = "abort"
 strip = true
 lto = true
+
+[profile.dev]
+debug = 1
+
+# Las dependencias no se depuran: sin su debuginfo el target/ baja de ~10 G a ~2 G.
+[profile.dev.package."*"]
+debug = false
